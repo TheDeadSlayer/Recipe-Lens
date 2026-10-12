@@ -1,6 +1,7 @@
 import logging
 import uuid
 from datetime import datetime, timezone
+from typing import Union
 
 from sqlalchemy.orm import Session
 
@@ -10,6 +11,7 @@ from app.schemas.recipe import RecipeSchema
 from app.services.hashing import compute_recipe_hash
 from app.services.llm.base import RecipeExtractor
 from app.services.transcript.base import TranscriptProvider
+from app.services.video.base import VideoRecipeExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +25,7 @@ def run_pipeline(
     source_url: str,
     db: Session,
     transcript_provider: TranscriptProvider,
-    recipe_extractor: RecipeExtractor,
+    recipe_extractor: Union[RecipeExtractor, VideoRecipeExtractor],
 ) -> None:
     """
     Runs the full transcript → extraction → persist pipeline for a job.
@@ -47,13 +49,54 @@ def run_pipeline(
     logger.info("job_id=%s status=processing", job_id)
 
     try:
-        # ── Fetch transcript ──────────────────────────────────────────────────
-        logger.info("job_id=%s fetching transcript url=%s", job_id, source_url)
-        transcript = transcript_provider.fetch(source_url)
+        # ── Fetch transcript + extract recipe ─────────────────────────────────
+        # When the extractor is a VideoRecipeExtractor (e.g. Gemini), classify
+        # the video first.  Only when classification.is_recipe is True proceed
+        # to extraction.  The transcript_provider argument is preserved for the
+        # mock/OpenAI paths and remains unused in the Gemini path.
+        if isinstance(recipe_extractor, VideoRecipeExtractor):
+            # Step 1 — classification
+            logger.info(
+                "job_id=%s video_extractor=%s classifying url=%s",
+                job_id,
+                type(recipe_extractor).__name__,
+                source_url,
+            )
+            classification = recipe_extractor.classify_video(source_url)
+            logger.info(
+                "job_id=%s classification is_recipe=%s reason=%r",
+                job_id,
+                classification.is_recipe,
+                classification.reason,
+            )
 
-        # ── Extract recipe ────────────────────────────────────────────────────
-        logger.info("job_id=%s extracting recipe", job_id)
-        recipe_schema: RecipeSchema = recipe_extractor.extract(transcript)
+            if not classification.is_recipe:
+                # Valid business outcome — mark the job as not_recipe and stop.
+                # Do not hash, dedup, or create a recipe row.
+                job.status = "not_recipe"
+                job.classification_reason = classification.reason
+                job.updated_at = _now()
+                db.commit()
+                logger.info(
+                    "job_id=%s status=not_recipe reason=%r",
+                    job_id,
+                    classification.reason,
+                )
+                return
+
+            # Step 2 — extraction (only reached when is_recipe is True)
+            logger.info(
+                "job_id=%s video_extractor=%s extracting_from_url url=%s",
+                job_id,
+                type(recipe_extractor).__name__,
+                source_url,
+            )
+            recipe_schema: RecipeSchema = recipe_extractor.extract_from_url(source_url)
+        else:
+            logger.info("job_id=%s fetching transcript url=%s", job_id, source_url)
+            transcript = transcript_provider.fetch(source_url)
+            logger.info("job_id=%s extracting recipe", job_id)
+            recipe_schema = recipe_extractor.extract(transcript)
 
         # ── Compute content hash ──────────────────────────────────────────────
         content_hash = compute_recipe_hash(recipe_schema)

@@ -24,6 +24,7 @@ class JobRead(BaseModel):
     status: str
     recipe_id: uuid.UUID | None
     error_message: str | None
+    classification_reason: str | None
     created_at: datetime
     updated_at: datetime
 

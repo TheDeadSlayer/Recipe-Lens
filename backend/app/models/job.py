@@ -7,14 +7,14 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
 
-VALID_JOB_STATUSES = ("pending", "processing", "completed", "failed")
+VALID_JOB_STATUSES = ("pending", "processing", "completed", "failed", "not_recipe")
 
 
 class Job(Base):
     __tablename__ = "jobs"
     __table_args__ = (
         CheckConstraint(
-            "status IN ('pending', 'processing', 'completed', 'failed')",
+            "status IN ('pending', 'processing', 'completed', 'failed', 'not_recipe')",
             name="ck_jobs_status",
         ),
     )
@@ -30,6 +30,7 @@ class Job(Base):
         UUID(as_uuid=True), nullable=True
     )
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    classification_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

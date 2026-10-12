@@ -122,11 +122,12 @@ def client(db):
 
     app.dependency_overrides[get_db] = override_get_db
 
-    # Set mock providers on app.state so routes read them correctly
-    app.state.transcript_provider = MockTranscriptProvider()
-    app.state.recipe_extractor = MockRecipeExtractor()
-
     with TestClient(app, raise_server_exceptions=True) as c:
+        # Override providers AFTER lifespan runs so the lifespan's own
+        # get_providers() call (which may construct a real Gemini/OpenAI client
+        # depending on the active .env) is replaced with cheap mocks.
+        app.state.transcript_provider = MockTranscriptProvider()
+        app.state.recipe_extractor = MockRecipeExtractor()
         yield c
 
     app.dependency_overrides.clear()

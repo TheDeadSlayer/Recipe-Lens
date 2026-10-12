@@ -18,6 +18,19 @@ class Settings(BaseSettings):
     # SecretStr prevents the key appearing in repr() / logs
     openai_api_key: SecretStr = SecretStr("")
     openai_model: str = ""
+    openai_timeout_seconds: int = 60
+    openai_max_retries: int = 2
+
+    # Gemini (only required when llm_provider=gemini)
+    # SecretStr prevents the key appearing in repr() / logs
+    gemini_api_key: SecretStr = SecretStr("")
+    gemini_model: str = "gemini-2.0-flash"
+    gemini_timeout_seconds: int = 300
+
+    # Whisper audio transcription (fallback when YouTube captions are unavailable)
+    # Uses the same OPENAI_API_KEY — no additional secret needed.
+    whisper_model: str = "whisper-1"
+    whisper_timeout_seconds: int = 300
 
     # Application
     log_level: str = "INFO"

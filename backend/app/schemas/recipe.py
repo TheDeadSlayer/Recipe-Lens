@@ -9,6 +9,19 @@ class Ingredient(BaseModel):
     quantity: str
 
 
+class RecipeVideoClassification(BaseModel):
+    """Returned by the Gemini classification step.
+
+    is_recipe — True when the video demonstrates or meaningfully explains how
+                to prepare a food or drink.
+    reason    — A short human-readable explanation of the classification
+                decision (one or two sentences).
+    """
+
+    is_recipe: bool
+    reason: str
+
+
 class RecipeRead(BaseModel):
     id: uuid.UUID
     job_id: uuid.UUID
