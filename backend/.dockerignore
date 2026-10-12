@@ -1,0 +1,36 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Local env files — never copy secrets into the image
+.env
+.env.*
+
+# Test artefacts
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+tests/
+
+# Build artefacts
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
