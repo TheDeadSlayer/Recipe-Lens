@@ -1,0 +1,31 @@
+# Caddyfile for local production smoke testing.
+#
+# Emulates the future AKS Ingress split-routing:
+#   /api/*    → backend:8000
+#   /health   → backend:8000  (liveness probe)
+#   /ready    → backend:8000  (readiness probe)
+#   /*        → frontend:8080
+#
+# This file is used ONLY by docker-compose.prod.yml.
+# It is not shipped in any application image.
+
+:8088 {
+    # Route API calls to the backend container.
+    handle /api/* {
+        reverse_proxy backend:8000
+    }
+
+    # Route Kubernetes-style health/readiness probes to the backend.
+    handle /health {
+        reverse_proxy backend:8000
+    }
+
+    handle /ready {
+        reverse_proxy backend:8000
+    }
+
+    # Route everything else to the frontend Nginx container (SPA).
+    handle {
+        reverse_proxy frontend:8080
+    }
+}

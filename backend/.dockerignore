@@ -21,10 +21,20 @@ htmlcov/
 coverage.xml
 tests/
 
+# Dev/CI scripts (init-test-db.sql etc. have no place in a production image)
+scripts/
+
 # Build artefacts
 *.egg-info/
 dist/
 build/
+
+# Documentation and plan files
+*.md
+
+# Git metadata
+.git/
+.gitignore
 
 # IDE
 .vscode/

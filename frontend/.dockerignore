@@ -1,0 +1,32 @@
+# Dependencies — installed fresh by npm ci inside the builder stage
+node_modules/
+
+# Previous local build output — rebuilt inside the container
+dist/
+
+# Local environment files — not secrets but not needed in the image
+.env
+.env.local
+.env.*.local
+
+# Test / coverage output
+coverage/
+
+# Documentation and plan files
+*.md
+
+# Git metadata
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# NOTE: .env.example is intentionally NOT excluded — it documents required
+# variables and contains no secrets.

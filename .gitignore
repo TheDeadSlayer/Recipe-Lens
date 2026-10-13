@@ -33,7 +33,6 @@ ENV/
 *.tfvars
 !*.tfvars.example
 .terraform/
-.terraform.lock.hcl
 crash.log
 override.tf
 override.tf.json

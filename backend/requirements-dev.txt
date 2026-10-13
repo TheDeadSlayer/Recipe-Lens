@@ -1,0 +1,10 @@
+# Development and test dependencies.
+# Extends runtime requirements — install this file in CI and local dev.
+-r requirements.txt
+
+# Testing
+pytest==8.3.4
+pytest-cov==6.0.0
+
+# httpx is required by Starlette's TestClient (transitive dep of fastapi[testclient])
+httpx==0.28.1

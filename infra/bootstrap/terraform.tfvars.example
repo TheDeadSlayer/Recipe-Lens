@@ -1,0 +1,9 @@
+# Stable suffix used for globally unique Azure resource names.
+# Choose once and do not change after resources are created.
+suffix = "xxxx"
+
+# Phase 1:
+# true
+
+# Final hardened configuration after state migration:
+shared_access_key_enabled = false

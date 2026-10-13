@@ -1,0 +1,122 @@
+# docker-compose.prod.yml — Local production smoke-test stack
+#
+# Builds and runs the PRODUCTION images (not the dev Vite/reload variants).
+# Use this file to validate production artifacts locally before pushing to ACR.
+#
+# Usage
+# ─────
+# 1. Copy .env.example → .env and fill in real values (DATABASE_URL, GEMINI_API_KEY, etc.)
+# 2. Run the database migration job first:
+#      docker compose -f docker-compose.prod.yml run --rm migrate
+# 3. Start all services:
+#      docker compose -f docker-compose.prod.yml up --build
+# 4. Smoke-test through the gateway (emulates AKS Ingress):
+#      curl http://localhost:8088/            → SPA HTML
+#      curl http://localhost:8088/recipes     → SPA HTML (React Router route)
+#      curl http://localhost:8088/api/v1/recipes → JSON from backend
+#      curl http://localhost:8088/api/v1/health  → {"status":"ok"}
+#
+# Service topology
+# ────────────────
+#   postgres   — PostgreSQL 16 (same as dev)
+#   backend    — production image, CMD serve, no migrations at startup
+#   frontend   — production Nginx image, port 8080, static SPA only
+#   gateway    — Caddy reverse proxy, routes /api/* and /* (port 8088)
+#   migrate    — one-shot migration Job (docker compose run --rm migrate)
+#
+# Port mapping
+# ────────────
+#   8088  gateway (primary entry point for smoke tests)
+#   8000  backend  (direct access for API-only checks / test suite)
+#   8080  frontend (direct access for static-asset checks)
+#   5433  postgres (mapped to 5433 to avoid conflicts with the dev stack on 5432)
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-recipelens}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── Migration Job ────────────────────────────────────────────────────────────
+  # Run once before starting application pods:
+  #   docker compose -f docker-compose.prod.yml run --rm migrate
+  # Mirrors the Helm pre-install/pre-upgrade Job: same image, args=["migrate"].
+  migrate:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["migrate"]
+    # No restart — this is a one-shot job.
+    restart: "no"
+
+  # ── Backend application ───────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      # In production AKS the Ingress handles CORS; the frontend and API share
+      # the same origin. CORS_ORIGINS here covers the gateway port used locally.
+      CORS_ORIGINS: '["http://localhost:8088"]'
+      WEB_CONCURRENCY: "1"
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Default CMD is "serve" — no migration runs at pod startup.
+    restart: unless-stopped
+
+  # ── Frontend Nginx ────────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  # ── Local gateway (emulates AKS Ingress) ─────────────────────────────────────
+  # Routes:
+  #   /api/* → backend:8000   (mirrors future Ingress rule)
+  #   /*     → frontend:8080  (mirrors future Ingress rule)
+  #
+  # This service is NOT part of any application image.
+  # It exists solely to allow end-to-end smoke testing of the production
+  # artifacts using the same routing model as AKS.
+  gateway:
+    image: caddy:2-alpine
+    ports:
+      - "8088:8088"
+    volumes:
+      - ./gateway/Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - backend
+      - frontend
+    restart: unless-stopped
+
+volumes:
+  postgres_prod_data:

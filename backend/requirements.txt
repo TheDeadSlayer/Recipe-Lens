@@ -19,8 +19,3 @@ openai==1.57.2
 
 # Gemini provider (used when LLM_PROVIDER=gemini)
 google-genai==2.29.0
-
-# Testing
-pytest==8.3.4
-pytest-cov==6.0.0
-httpx==0.28.1

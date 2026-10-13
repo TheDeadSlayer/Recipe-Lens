@@ -1,0 +1,11 @@
+terraform {
+  backend "azurerm" {
+    resource_group_name  = "recipelens-bootstrap-rg"
+    storage_account_name = "recipelensbootstXXXX"
+    container_name       = "tfstate"
+    key                  = "recipelens/bootstrap/terraform.tfstate"
+
+    use_azuread_auth = true
+    use_cli          = true
+  }
+}
