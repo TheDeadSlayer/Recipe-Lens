@@ -31,7 +31,7 @@ def _wait_for_terminal(client, job_id: str, *, retries: int = 10) -> dict:
 def _submit_and_wait(client, url: str) -> dict:
     resp = client.post("/api/v1/jobs", json={"source_url": url})
     assert resp.status_code == 202
-    return _wait_for_terminal(client, resp.json()["id"])
+    return _wait_for_terminal(client, resp.json()["job_id"])
 
 
 def _swap_extractor(client, extractor: RecipeExtractor):

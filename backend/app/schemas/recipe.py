@@ -26,6 +26,7 @@ class RecipeRead(BaseModel):
     id: uuid.UUID
     job_id: uuid.UUID
     source_url: str
+    source_video_id: str | None
     title: str
     description: str | None
     ingredients: list[Ingredient]

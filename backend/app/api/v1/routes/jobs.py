@@ -5,10 +5,13 @@ from sqlalchemy.orm import Session
 
 from app.db.session import SessionLocal, get_db
 from app.models.job import Job
-from app.schemas.job import JobCreate, JobRead
+from app.models.recipe import Recipe
+from app.schemas.job import JobCreate, JobCreateResponse, JobRead
+from app.schemas.recipe import RecipeRead
 from app.services.llm.base import RecipeExtractor
 from app.services.recipe_pipeline import run_pipeline
 from app.services.transcript.base import TranscriptProvider
+from app.services.youtube import extract_video_id
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -37,17 +40,36 @@ def _run_pipeline_with_own_session(
         db.close()
 
 
-@router.post("", response_model=JobRead, status_code=status.HTTP_202_ACCEPTED)
+@router.post("", response_model=JobCreateResponse, status_code=status.HTTP_202_ACCEPTED)
 def create_job(
     payload: JobCreate,
     request: Request,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
-) -> Job:
+) -> JobCreateResponse:
     # Providers are initialised once at app startup and stored on app.state
     transcript_provider: TranscriptProvider = request.app.state.transcript_provider
     recipe_extractor: RecipeExtractor = request.app.state.recipe_extractor
 
+    # ── Layer 1: source-video deduplication ───────────────────────────────────
+    # Extract the canonical YouTube video ID from the submitted URL.  When a
+    # recipe already exists for this video ID we return it immediately without
+    # creating a job or invoking Gemini.
+    video_id = extract_video_id(payload.source_url)
+    if video_id is not None:
+        existing_recipe = (
+            db.query(Recipe).filter_by(source_video_id=video_id).first()
+        )
+        if existing_recipe is not None:
+            recipe_read = RecipeRead.model_validate(existing_recipe)
+            return JobCreateResponse(
+                already_exists=True,
+                job_id=None,
+                recipe_id=existing_recipe.id,
+                recipe=recipe_read,
+            )
+
+    # ── New job: create and queue ─────────────────────────────────────────────
     job = Job(source_url=payload.source_url)
     db.add(job)
     db.commit()
@@ -61,7 +83,12 @@ def create_job(
         recipe_extractor=recipe_extractor,
     )
 
-    return job
+    return JobCreateResponse(
+        already_exists=False,
+        job_id=job.id,
+        recipe_id=None,
+        recipe=None,
+    )
 
 
 @router.get("/{job_id}", response_model=JobRead)

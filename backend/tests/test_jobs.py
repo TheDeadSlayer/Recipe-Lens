@@ -20,11 +20,12 @@ def test_create_job_returns_202(client):
     response = client.post("/api/v1/jobs", json={"source_url": "https://example.com/video1"})
     assert response.status_code == 202
     data = response.json()
-    assert "id" in data
-    assert data["status"] == "pending"
-    assert data["source_url"] == "https://example.com/video1"
+    # New response shape: JobCreateResponse
+    assert data["already_exists"] is False
+    assert "job_id" in data
+    assert data["job_id"] is not None
     assert data["recipe_id"] is None
-    assert data["error_message"] is None
+    assert data["recipe"] is None
 
 
 def test_get_job_not_found(client):
@@ -34,7 +35,7 @@ def test_get_job_not_found(client):
 
 def test_get_job_returns_job(client):
     create = client.post("/api/v1/jobs", json={"source_url": "https://example.com/video2"})
-    job_id = create.json()["id"]
+    job_id = create.json()["job_id"]  # job_id field in new response shape
 
     response = client.get(f"/api/v1/jobs/{job_id}")
     assert response.status_code == 200
@@ -56,7 +57,7 @@ def test_job_pipeline_completes(client):
         "/api/v1/jobs", json={"source_url": "https://example.com/chicken-video"}
     )
     assert response.status_code == 202
-    job_id = response.json()["id"]
+    job_id = response.json()["job_id"]
 
     # Poll the job until it reaches a terminal state (completed or failed).
     # With TestClient, background tasks are synchronous so this should resolve
@@ -78,7 +79,7 @@ def test_completed_job_has_accessible_recipe(client):
     response = client.post(
         "/api/v1/jobs", json={"source_url": "https://example.com/pasta-video"}
     )
-    job_id = response.json()["id"]
+    job_id = response.json()["job_id"]
 
     for _ in range(10):
         poll = client.get(f"/api/v1/jobs/{job_id}")

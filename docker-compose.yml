@@ -24,6 +24,10 @@ services:
       dockerfile: Dockerfile
     env_file:
       - .env
+    environment:
+      # Allow the browser (on the host) to reach the API from the Vite dev server.
+      # pydantic-settings v2 requires JSON array format for list[str] fields.
+      CORS_ORIGINS: '["http://localhost:5173"]'
     ports:
       - "8000:8000"
     depends_on:
@@ -33,6 +37,25 @@ services:
     volumes:
       - ./backend:/app
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5173:5173"
+    environment:
+      # VITE_API_BASE_URL must be the address the *browser* uses to reach the
+      # backend — that is http://localhost:8000, NOT http://backend:8000.
+      # The "backend" hostname is only resolvable inside the Docker network.
+      VITE_API_BASE_URL: "http://localhost:8000"
+    volumes:
+      # Bind-mount source for Vite hot-module reload without image rebuilds.
+      # node_modules is excluded so the container's installed packages are used.
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
 
 volumes:
   postgres_data:

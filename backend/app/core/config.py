@@ -10,6 +10,12 @@ class Settings(BaseSettings):
     # Database
     database_url: str
 
+    # CORS — allowed origins for the browser frontend.
+    # pydantic-settings v2 parses list[str] from a JSON array in the env var:
+    #   CORS_ORIGINS=["http://localhost:5173","http://localhost:3000"]
+    # The default covers the Vite dev server used in local development.
+    cors_origins: list[str] = ["http://localhost:5173"]
+
     # Providers
     transcript_provider: str = "mock"
     llm_provider: str = "mock"

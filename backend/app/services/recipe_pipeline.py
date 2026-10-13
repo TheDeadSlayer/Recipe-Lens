@@ -12,6 +12,7 @@ from app.services.hashing import compute_recipe_hash
 from app.services.llm.base import RecipeExtractor
 from app.services.transcript.base import TranscriptProvider
 from app.services.video.base import VideoRecipeExtractor
+from app.services.youtube import extract_video_id
 
 logger = logging.getLogger(__name__)
 
@@ -121,6 +122,7 @@ def run_pipeline(
             id=uuid.uuid4(),
             job_id=job_id,
             source_url=source_url,
+            source_video_id=extract_video_id(source_url),
             title=recipe_schema.title,
             description=recipe_schema.description,
             ingredients=[i.model_dump() for i in recipe_schema.ingredients],

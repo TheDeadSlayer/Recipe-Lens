@@ -1,0 +1,26 @@
+# ── Development image ─────────────────────────────────────────────────────────
+# Used by docker-compose for local development.
+# Source code is bind-mounted at /app, so Vite HMR works without rebuilding.
+#
+# Vite is started with --host 0.0.0.0 so it binds to all container interfaces
+# (required to be reachable on the host via the exposed port).
+#
+# VITE_API_BASE_URL must be the address the *browser* uses to reach the backend,
+# i.e. http://localhost:8000 — NOT http://backend:8000 (that is only resolvable
+# inside the Docker network, not by the user's browser).
+
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install dependencies from package.json before bind-mounting source so that
+# node_modules is pre-populated inside the container layer (avoids re-installing
+# every time the image starts when a bind mount replaces /app).
+COPY package.json package-lock.json* ./
+RUN npm ci
+
+# Source code is provided via bind mount at runtime — do not COPY here.
+
+EXPOSE 5173
+
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]

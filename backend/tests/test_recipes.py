@@ -24,7 +24,7 @@ def test_get_recipe_structure(client):
     job_response = client.post(
         "/api/v1/jobs", json={"source_url": "https://example.com/structure-test"}
     )
-    job_id = job_response.json()["id"]
+    job_id = job_response.json()["job_id"]
 
     import time
     for _ in range(10):

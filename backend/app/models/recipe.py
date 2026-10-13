@@ -41,6 +41,14 @@ class Recipe(Base):
         String(64), nullable=True, unique=True
     )
 
+    # Extracted YouTube video ID (e.g. "dQw4w9WgXcQ") — used for fast source-level
+    # duplicate detection before any Gemini processing.
+    # nullable=True so non-YouTube sources and pre-migration rows remain valid.
+    # Uniqueness is enforced by a partial index in migration 0005 (NULL rows excluded).
+    source_video_id: Mapped[str | None] = mapped_column(
+        String(20), nullable=True, index=False
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
