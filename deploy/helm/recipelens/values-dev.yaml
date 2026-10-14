@@ -1,0 +1,24 @@
+# RecipeLens Helm values — dev environment overrides.
+# Applied with: helm install/upgrade recipelens ... -f values-dev.yaml
+#
+# These values are environment-specific but NOT secret.
+# Actual secret values (DATABASE_URL, GEMINI_API_KEY) are stored in
+# Azure Key Vault and never appear in this file.
+
+azure:
+  tenantId: "0fc4e9df-daf5-4fd0-80f4-6dffaf39e17c"
+  keyVaultName: "recipelens-dev-m7k2-kv"
+  # Client ID of the recipelens-dev-app-identity UAMI (Stage 4E output).
+  workloadIdentityClientId: "d95f8a0c-599b-4ffc-ae8e-98ca5af039da"
+
+backend:
+  image:
+    tag: "d4f0833"
+  env:
+    # CORS_ORIGINS covers port-forward access during Stage 4F.1 testing.
+    # Update to the public hostname when Ingress/DNS is configured (Stage 4F.2).
+    CORS_ORIGINS: '["http://localhost:8000","http://localhost:8080"]'
+
+frontend:
+  image:
+    tag: "2c81f9d"

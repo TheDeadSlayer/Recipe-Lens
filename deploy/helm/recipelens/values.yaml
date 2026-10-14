@@ -1,0 +1,183 @@
+# RecipeLens Helm values — defaults applicable to all environments.
+# Override per-environment in values-<env>.yaml.
+#
+# Secret values are NEVER placed here.  DATABASE_URL and GEMINI_API_KEY are
+# sourced exclusively from Azure Key Vault via the Secrets Store CSI driver.
+
+# ---------------------------------------------------------------------------
+# Global image registry
+# ---------------------------------------------------------------------------
+registry: recipelensdevm7k2acr.azurecr.io
+
+# ---------------------------------------------------------------------------
+# Namespace — Helm creates/manages the namespace at install time.
+# Set createNamespace: true in `helm install --create-namespace` or via the
+# namespace management below.
+# ---------------------------------------------------------------------------
+# (namespace is passed as --namespace on the CLI; no manifest emitted here)
+
+# ---------------------------------------------------------------------------
+# Azure / Workload Identity
+# ---------------------------------------------------------------------------
+azure:
+  # Azure AD tenant ID.
+  tenantId: ""
+  # Key Vault name (not URI — the CSI driver resolves the URI from the name).
+  keyVaultName: ""
+  # Client ID of the RecipeLens workload UAMI.
+  # Injected into the ServiceAccount annotation and SecretProviderClass.
+  # Never a secret — it is a public identity identifier.
+  workloadIdentityClientId: ""
+
+# ---------------------------------------------------------------------------
+# ServiceAccount
+# ---------------------------------------------------------------------------
+serviceAccount:
+  # Name of the Kubernetes ServiceAccount used by the backend and migration Job.
+  name: recipelens-backend
+
+# ---------------------------------------------------------------------------
+# Secrets (CSI / SecretProviderClass)
+# ---------------------------------------------------------------------------
+secrets:
+  # Name of the SecretProviderClass resource.
+  providerClassName: recipelens-kv-secrets
+  # Name of the Kubernetes Secret synced from Key Vault via secretObjects.
+  # This Secret is created by the CSI driver — Helm does not create it directly.
+  secretName: recipelens-backend-secrets
+  # CSI volume mount path for the Key Vault secret files (required to keep
+  # the sync lifecycle active; files are not read directly by the application).
+  mountPath: /mnt/secrets-store
+
+# ---------------------------------------------------------------------------
+# Migration Job
+# ---------------------------------------------------------------------------
+migration:
+  # backoffLimit: number of retries before the Job is considered failed.
+  backoffLimit: 3
+  # activeDeadlineSeconds: hard timeout for the migration Job.
+  activeDeadlineSeconds: 300
+  # Hook deletion policy: remove the Job once it has completed successfully.
+  hookDeletePolicy: hook-succeeded
+
+# ---------------------------------------------------------------------------
+# Backend
+# ---------------------------------------------------------------------------
+backend:
+  image:
+    repository: recipelens/backend
+    # tag is set in values-<env>.yaml to the exact immutable digest/tag.
+    tag: ""
+    pullPolicy: IfNotPresent
+
+  replicaCount: 1
+
+  # containerPort must match EXPOSE 8000 in the backend Dockerfile and the
+  # Uvicorn --port argument in entrypoint.sh.
+  containerPort: 8000
+
+  service:
+    port: 80
+    targetPort: 8000
+
+  # Readiness: GET /ready — returns 200 only when the database is reachable.
+  # Liveness:  GET /health — returns 200 if the process is alive.
+  # Initial delays allow the DB connection pool to warm up.
+  readinessProbe:
+    httpGet:
+      path: /ready
+      port: 8000
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    failureThreshold: 6
+    successThreshold: 1
+    timeoutSeconds: 5
+
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 8000
+    initialDelaySeconds: 20
+    periodSeconds: 15
+    failureThreshold: 3
+    successThreshold: 1
+    timeoutSeconds: 5
+
+  # Resource requests/limits sized for a Standard_D2pds_v5 (2 vCPU, 8 GB RAM)
+  # ARM64 node running a single-node dev cluster.
+  # Backend: Python/Uvicorn, single worker, light AI workload.
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  # Environment variables that are NOT secrets (safe to commit).
+  env:
+    LLM_PROVIDER: gemini
+    TRANSCRIPT_PROVIDER: youtube
+    GEMINI_MODEL: gemini-3.8-flash
+    LOG_LEVEL: INFO
+    WEB_CONCURRENCY: "1"
+    # In AKS the frontend and backend share the same origin via Ingress.
+    # CORS_ORIGINS must be updated when the public hostname is known (Stage 4F.2).
+    # For internal-only Stage 4F.1, cluster-internal access only.
+    CORS_ORIGINS: '["http://localhost:8000"]'
+    DB_POOL_SIZE: "5"
+    DB_MAX_OVERFLOW: "10"
+    DB_POOL_TIMEOUT: "30"
+
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1001
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    # readOnlyRootFilesystem is NOT set for the backend:
+    # Uvicorn and Python may write to /tmp and __pycache__ at runtime.
+    # Enable only after profiling actual writes.
+
+# ---------------------------------------------------------------------------
+# Frontend
+# ---------------------------------------------------------------------------
+frontend:
+  image:
+    repository: recipelens/frontend
+    # tag is set in values-<env>.yaml to the exact immutable digest/tag.
+    tag: ""
+    pullPolicy: IfNotPresent
+
+  replicaCount: 1
+
+  # containerPort must match EXPOSE 8080 in the frontend Dockerfile and
+  # the `listen 8080` directive in nginx.conf.
+  # nginx-unprivileged runs as uid 101, port 8080 (no capabilities needed).
+  containerPort: 8080
+
+  service:
+    port: 80
+    targetPort: 8080
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+  securityContext:
+    runAsNonRoot: true
+    # nginx-unprivileged uses uid 101.
+    runAsUser: 101
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    # readOnlyRootFilesystem is NOT set for the frontend:
+    # nginx-unprivileged requires writable /tmp, /var/cache/nginx, and
+    # /var/run at runtime. Setting readOnlyRootFilesystem: true would require
+    # additional emptyDir volume mounts for those paths — deferred.

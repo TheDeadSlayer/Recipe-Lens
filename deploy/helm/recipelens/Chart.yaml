@@ -1,0 +1,20 @@
+apiVersion: v2
+name: recipelens
+description: >
+  RecipeLens — AI-powered recipe extraction from YouTube videos.
+  Deploys the backend (FastAPI/Uvicorn) and frontend (Nginx SPA) to AKS with
+  Azure Key Vault secret injection via the Secrets Store CSI driver and
+  Workload Identity.
+type: application
+version: 0.1.0
+appVersion: "d4f0833"
+
+keywords:
+  - recipelens
+  - fastapi
+  - nginx
+  - azure
+  - aks
+
+maintainers:
+  - name: RecipeLens

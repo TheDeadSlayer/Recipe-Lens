@@ -1,0 +1,83 @@
+{{- /*
+  Frontend Deployment — Nginx SPA (React/Vite).
+
+  Image: recipelensdevm7k2acr.azurecr.io/recipelens/frontend:<tag>
+    Base: nginxinc/nginx-unprivileged:1.27-alpine
+    Runs as uid 101 (non-root), listens on port 8080.
+    No Workload Identity — the frontend is a static asset server.
+
+  API routing:
+    The SPA uses relative /api/v1/... URLs (VITE_API_BASE_URL="" at build time).
+    Nginx does NOT proxy /api/ — routing to the backend is the responsibility
+    of the Ingress (Stage 4F.2). In Stage 4F.1 (internal access only) the
+    frontend and backend are accessed independently via kubectl port-forward.
+
+  readOnlyRootFilesystem: NOT set.
+    nginx-unprivileged requires writable runtime directories at startup:
+      /tmp                  — temp files
+      /var/cache/nginx      — proxy/fastcgi cache (used even for static serving)
+      /var/run              — nginx.pid
+    Setting readOnlyRootFilesystem: true would require emptyDir mounts for all
+    three paths. Deferred — can be hardened in a future stage with those mounts.
+*/ -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "recipelens.fullname" . }}-frontend
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "recipelens.labels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+spec:
+  replicas: {{ .Values.frontend.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "recipelens.frontend.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "recipelens.frontend.selectorLabels" . | nindent 8 }}
+    spec:
+      # Frontend uses the default ServiceAccount — no Workload Identity needed.
+
+      nodeSelector:
+        kubernetes.azure.com/mode: user
+        
+      containers:
+        - name: frontend
+          image: {{ include "recipelens.frontend.image" . }}
+          imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
+
+          ports:
+            - name: http
+              containerPort: {{ .Values.frontend.containerPort }}
+              protocol: TCP
+
+          # Static asset server — no environment configuration required.
+          # API base URL is baked in as "" (relative) at image build time.
+
+          readinessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.frontend.containerPort }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+            successThreshold: 1
+            timeoutSeconds: 3
+
+          livenessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.frontend.containerPort }}
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            failureThreshold: 3
+            successThreshold: 1
+            timeoutSeconds: 3
+
+          resources:
+            {{- toYaml .Values.frontend.resources | nindent 12 }}
+
+          securityContext:
+            {{- toYaml .Values.frontend.securityContext | nindent 12 }}

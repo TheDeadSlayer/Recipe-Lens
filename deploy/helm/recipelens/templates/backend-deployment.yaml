@@ -1,0 +1,101 @@
+{{- /*
+  Backend Deployment — FastAPI/Uvicorn application server.
+
+  Image: recipelensdevm7k2acr.azurecr.io/recipelens/backend:<tag>
+    Runs as uid 1001 (non-root), listens on port 8000 (Uvicorn).
+    Entrypoint: /entrypoint.sh serve
+
+  ACR pull: performed by the AKS kubelet identity (AcrPull role assignment
+    from Stage 4C). No imagePullSecrets required.
+
+  Secrets: DATABASE_URL and GEMINI_API_KEY are injected via envFrom from the
+    recipelens-backend-secrets Kubernetes Secret, which is created and kept
+    in sync by the CSI driver while this Deployment's Pods mount the CSI volume.
+
+  Workload Identity: azure.workload.identity/use: "true" on the Pod causes the
+    AKS mutating webhook to inject a projected ServiceAccount token volume.
+    The CSI driver exchanges this token (via the OIDC issuer) for an Azure AD
+    access token scoped to the workload UAMI, which reads from Key Vault.
+*/ -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "recipelens.fullname" . }}-backend
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "recipelens.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+spec:
+  replicas: {{ .Values.backend.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "recipelens.backend.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "recipelens.backend.selectorLabels" . | nindent 8 }}
+        # Required: AKS Workload Identity mutating webhook injects the projected
+        # ServiceAccount token volume when this label is present on the Pod.
+        azure.workload.identity/use: "true"
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+
+      nodeSelector:
+        kubernetes.azure.com/mode: user
+        
+      containers:
+        - name: backend
+          image: {{ include "recipelens.backend.image" . }}
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+
+          # Default CMD in the Dockerfile is ["serve"]; explicit here for clarity.
+          command: ["/entrypoint.sh", "serve"]
+
+          ports:
+            - name: http
+              containerPort: {{ .Values.backend.containerPort }}
+              protocol: TCP
+
+          # Secrets injected from the CSI-synced Kubernetes Secret.
+          # Never placed in values.yaml or templates directly.
+          envFrom:
+            - secretRef:
+                name: {{ .Values.secrets.secretName }}
+
+          # Non-secret configuration.
+          env:
+            {{- range $key, $val := .Values.backend.env }}
+            - name: {{ $key }}
+              value: {{ $val | quote }}
+            {{- end }}
+
+          # Readiness probe: GET /ready — returns 503 if DB is unreachable.
+          # Kubernetes removes the Pod from Service endpoints until it passes.
+          readinessProbe:
+            {{- toYaml .Values.backend.readinessProbe | nindent 12 }}
+
+          # Liveness probe: GET /health — always 200 if the process is alive.
+          # Kubernetes restarts the container if this fails repeatedly.
+          livenessProbe:
+            {{- toYaml .Values.backend.livenessProbe | nindent 12 }}
+
+          resources:
+            {{- toYaml .Values.backend.resources | nindent 12 }}
+
+          # The CSI volume mount keeps the secretObjects sync lifecycle active.
+          # The container reads secrets via envFrom (above), not from files.
+          volumeMounts:
+            - name: csi-secrets-store
+              mountPath: {{ .Values.secrets.mountPath }}
+              readOnly: true
+
+          securityContext:
+            {{- toYaml .Values.backend.securityContext | nindent 12 }}
+
+      volumes:
+        - name: csi-secrets-store
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: {{ .Values.secrets.providerClassName }}

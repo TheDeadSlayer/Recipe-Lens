@@ -33,6 +33,8 @@ ENV/
 *.tfvars
 !*.tfvars.example
 .terraform/
+tfplan
+*.tfplan
 crash.log
 override.tf
 override.tf.json

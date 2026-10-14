@@ -1,0 +1,129 @@
+{{- /*
+  Migration Job — runs Alembic migrations after chart resources are installed.
+
+  Hook ordering: post-install, pre-upgrade
+    post-install: Helm first applies all normal (non-hook) chart manifests —
+      ServiceAccount, SecretProviderClass, Deployments, Services — then waits
+      for this Job to complete before marking the release as successful.
+      This is required because the Job depends on:
+        • recipelens-backend ServiceAccount (for Workload Identity token)
+        • recipelens-kv-secrets SecretProviderClass (for CSI volume mount)
+      Both are non-hook chart resources and therefore must exist before the
+      Job Pod can be scheduled and the CSI driver can authenticate to Key Vault.
+    pre-upgrade: Helm runs this Job before applying any resource updates, so
+      new schema migrations are applied before the new application Pods start.
+      By the time pre-upgrade runs, the ServiceAccount and SecretProviderClass
+      from the previous release are already present in the cluster.
+
+  Backend safety during post-install:
+    The backend Deployment starts concurrently with the post-install hook.
+    It is safe because:
+      • create_engine() (session.py) opens the DB connection pool lazily on
+        first use, not at import time — Uvicorn starts without touching the DB.
+      • The lifespan handler only instantiates LLM/transcript providers; it
+        does not perform any database operations.
+      • GET /health returns 200 immediately (process-alive check only).
+      • GET /ready executes SELECT 1 — it tests TCP connectivity, not schema
+        presence. It will return 200 as soon as PostgreSQL is reachable, even
+        before tables exist. The backend Pod will therefore become Ready quickly.
+      • Route handlers (GET /api/v1/recipes, POST /api/v1/jobs) DO query the
+        jobs/recipes tables. If a request arrives after the backend is Ready but
+        before the migration Job completes, PostgreSQL will return a
+        "relation does not exist" error and the handler will return HTTP 500.
+        This is acceptable for a dev cluster: the race window is small (seconds)
+        and the backend does not crash — only individual requests fail transiently.
+      • If the race window is unacceptable in a future stage, it can be closed
+        by adding a readiness probe that verifies the alembic_version table.
+        No change to the application is required for Stage 4F.1.
+
+  CSI / secretObjects bootstrap:
+    The Job mounts the CSI volume (csi-secrets-store). This:
+      1. Activates the secretObjects sync lifecycle, creating the
+         `recipelens-backend-secrets` Kubernetes Secret if not yet present.
+      2. Allows DATABASE_URL to be consumed from the synced Secret via env.
+    The CSI driver creates the Secret synchronously during the volume mount —
+    DATABASE_URL is available before the container entrypoint runs.
+
+  Hook deletion policy: hook-succeeded
+    Completed Jobs are deleted automatically. Failed Jobs are retained for
+    log inspection. Prevents accumulation of completed Jobs across upgrades.
+*/ -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "recipelens.fullname" . }}-migrate
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "recipelens.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migration
+  annotations:
+    "helm.sh/hook": post-install,pre-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": {{ .Values.migration.hookDeletePolicy }}
+spec:
+  backoffLimit: {{ .Values.migration.backoffLimit }}
+  activeDeadlineSeconds: {{ .Values.migration.activeDeadlineSeconds }}
+  template:
+    metadata:
+      labels:
+        {{- include "recipelens.labels" . | nindent 8 }}
+        app.kubernetes.io/component: migration
+        # Required: AKS Workload Identity mutating webhook injects the projected
+        # ServiceAccount token volume when this label is present.
+        azure.workload.identity/use: "true"
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      restartPolicy: OnFailure
+
+      nodeSelector:
+        kubernetes.azure.com/mode: user
+        
+      containers:
+        - name: migrate
+          image: {{ include "recipelens.backend.image" . }}
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+
+          # Invoke the 'migrate' sub-command defined in entrypoint.sh.
+          # Runs: alembic upgrade head, then exits.
+          command: ["/entrypoint.sh", "migrate"]
+
+          env:
+            # DATABASE_URL is sourced from the Kubernetes Secret synced by the
+            # CSI driver during the volume mount (see volumes below).
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.secretName }}
+                  key: DATABASE_URL
+
+          # The CSI volume mount activates the sync lifecycle that creates
+          # the recipelens-backend-secrets Kubernetes Secret.  The container
+          # reads DATABASE_URL via secretKeyRef above, not from the file.
+          volumeMounts:
+            - name: csi-secrets-store
+              mountPath: {{ .Values.secrets.mountPath }}
+              readOnly: true
+
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 300m
+              memory: 256Mi
+
+      volumes:
+        - name: csi-secrets-store
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: {{ .Values.secrets.providerClassName }}
