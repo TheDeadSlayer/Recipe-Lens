@@ -24,7 +24,10 @@ if not database_url:
         "Export it before running alembic, e.g.:\n"
         "  export DATABASE_URL=postgresql://user:pass@host:5432/dbname"
     )
-config.set_main_option("sqlalchemy.url", database_url)
+config.set_main_option(
+    "sqlalchemy.url",
+    database_url.replace("%", "%%"),
+)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

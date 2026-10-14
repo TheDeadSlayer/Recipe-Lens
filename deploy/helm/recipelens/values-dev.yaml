@@ -21,4 +21,4 @@ backend:
 
 frontend:
   image:
-    tag: "2c81f9d"
+    tag: "cdd7715"
