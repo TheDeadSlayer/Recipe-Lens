@@ -56,7 +56,7 @@ migration:
   # backoffLimit: number of retries before the Job is considered failed.
   backoffLimit: 3
   # activeDeadlineSeconds: hard timeout for the migration Job.
-  activeDeadlineSeconds: 600
+  activeDeadlineSeconds: 300
   # Hook deletion policy: remove the Job once it has completed successfully.
   hookDeletePolicy: before-hook-creation,hook-succeeded
 
