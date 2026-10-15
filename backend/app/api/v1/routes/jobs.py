@@ -57,9 +57,7 @@ def create_job(
     # creating a job or invoking Gemini.
     video_id = extract_video_id(payload.source_url)
     if video_id is not None:
-        existing_recipe = (
-            db.query(Recipe).filter_by(source_video_id=video_id).first()
-        )
+        existing_recipe = db.query(Recipe).filter_by(source_video_id=video_id).first()
         if existing_recipe is not None:
             recipe_read = RecipeRead.model_validate(existing_recipe)
             return JobCreateResponse(

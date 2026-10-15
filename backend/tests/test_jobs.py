@@ -53,9 +53,7 @@ def test_job_pipeline_completes(client):
     TestClient runs background tasks synchronously before returning the response,
     so we can assert the completed state immediately after the POST.
     """
-    response = client.post(
-        "/api/v1/jobs", json={"source_url": "https://example.com/chicken-video"}
-    )
+    response = client.post("/api/v1/jobs", json={"source_url": "https://example.com/chicken-video"})
     assert response.status_code == 202
     job_id = response.json()["job_id"]
 
@@ -69,16 +67,12 @@ def test_job_pipeline_completes(client):
             break
         time.sleep(0.1)
 
-    assert poll.json()["status"] == "completed", (
-        f"Job did not complete: {poll.json()}"
-    )
+    assert poll.json()["status"] == "completed", f"Job did not complete: {poll.json()}"
     assert poll.json()["recipe_id"] is not None
 
 
 def test_completed_job_has_accessible_recipe(client):
-    response = client.post(
-        "/api/v1/jobs", json={"source_url": "https://example.com/pasta-video"}
-    )
+    response = client.post("/api/v1/jobs", json={"source_url": "https://example.com/pasta-video"})
     job_id = response.json()["job_id"]
 
     for _ in range(10):

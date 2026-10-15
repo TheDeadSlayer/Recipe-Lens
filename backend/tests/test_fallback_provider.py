@@ -16,8 +16,8 @@ from app.services.transcript.base import (
 )
 from app.services.transcript.fallback import WithFallbackTranscriptProvider
 
-
 # ── Fake provider helpers ─────────────────────────────────────────────────────
+
 
 class _SuccessProvider(TranscriptProvider):
     def __init__(self, text: str = "Primary transcript."):
@@ -44,6 +44,7 @@ _URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 
 # ── Primary success — fallback never called ───────────────────────────────────
 
+
 def test_primary_success_returns_primary_transcript():
     primary = _SuccessProvider("Primary transcript.")
     fallback = _SuccessProvider("Fallback transcript.")
@@ -65,6 +66,7 @@ def test_primary_success_never_calls_fallback():
 
 
 # ── Fallback-triggering errors ────────────────────────────────────────────────
+
 
 def test_captcha_required_activates_fallback():
     primary = _RaisingProvider(CaptchaRequiredError("rate limited"))
@@ -90,6 +92,7 @@ def test_no_transcript_found_activates_fallback():
 
 
 # ── Hard failures — fallback must NOT be called ───────────────────────────────
+
 
 def test_invalid_url_error_propagates_without_fallback():
     primary = _RaisingProvider(InvalidYouTubeURLError("bad url"))
@@ -121,6 +124,7 @@ def test_generic_transcript_unavailable_propagates_without_fallback():
 
 # ── Fallback failure propagates ───────────────────────────────────────────────
 
+
 def test_fallback_failure_propagates_to_caller():
     """If the fallback itself fails, the error must propagate (job marked failed)."""
     primary = _RaisingProvider(CaptchaRequiredError("rate limited"))
@@ -139,14 +143,16 @@ def test_fallback_failure_does_not_retry_primary():
     with pytest.raises(TranscriptUnavailableError):
         provider.fetch(_URL)
 
-    assert primary.call_count == 1   # primary called exactly once
+    assert primary.call_count == 1  # primary called exactly once
     assert fallback.call_count == 1  # fallback called exactly once
 
 
 # ── Correct fallback error type preserved ────────────────────────────────────
 
+
 def test_fallback_error_type_is_preserved():
     """The exact exception type raised by the fallback must reach the caller."""
+
     class _CustomError(TranscriptUnavailableError):
         pass
 

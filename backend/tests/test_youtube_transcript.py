@@ -20,8 +20,8 @@ from app.services.transcript.base import (
     CaptchaRequiredError,
     InvalidYouTubeURLError,
     NoTranscriptFoundError,
-    TranscriptUnavailableError,
     TranscriptsDisabledError,
+    TranscriptUnavailableError,
     VideoUnavailableError,
 )
 from app.services.transcript.youtube import (
@@ -32,32 +32,40 @@ from app.services.transcript.youtube import (
 
 # ── _extract_video_id unit tests ──────────────────────────────────────────────
 
-@pytest.mark.parametrize("url,expected_id", [
-    ("https://www.youtube.com/watch?v=dQw4w9WgXcQ", "dQw4w9WgXcQ"),
-    ("https://youtu.be/dQw4w9WgXcQ", "dQw4w9WgXcQ"),
-    ("https://www.youtube.com/shorts/dQw4w9WgXcQ", "dQw4w9WgXcQ"),
-    ("https://www.youtube.com/embed/dQw4w9WgXcQ", "dQw4w9WgXcQ"),
-    ("https://www.youtube.com/watch?list=PL123&v=dQw4w9WgXcQ", "dQw4w9WgXcQ"),
-    ("https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42s", "dQw4w9WgXcQ"),
-])
+
+@pytest.mark.parametrize(
+    "url,expected_id",
+    [
+        ("https://www.youtube.com/watch?v=dQw4w9WgXcQ", "dQw4w9WgXcQ"),
+        ("https://youtu.be/dQw4w9WgXcQ", "dQw4w9WgXcQ"),
+        ("https://www.youtube.com/shorts/dQw4w9WgXcQ", "dQw4w9WgXcQ"),
+        ("https://www.youtube.com/embed/dQw4w9WgXcQ", "dQw4w9WgXcQ"),
+        ("https://www.youtube.com/watch?list=PL123&v=dQw4w9WgXcQ", "dQw4w9WgXcQ"),
+        ("https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42s", "dQw4w9WgXcQ"),
+    ],
+)
 def test_extract_video_id_valid_urls(url, expected_id):
     assert _extract_video_id(url) == expected_id
 
 
-@pytest.mark.parametrize("url", [
-    "https://example.com/video",
-    "https://vimeo.com/123456789",
-    "not-a-url",
-    "",
-    "https://www.youtube.com/",
-    "https://www.youtube.com/channel/UCxxx",
-])
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://example.com/video",
+        "https://vimeo.com/123456789",
+        "not-a-url",
+        "",
+        "https://www.youtube.com/",
+        "https://www.youtube.com/channel/UCxxx",
+    ],
+)
 def test_extract_video_id_invalid_urls(url):
     with pytest.raises(InvalidYouTubeURLError):
         _extract_video_id(url)
 
 
 # ── _join_snippets unit tests ─────────────────────────────────────────────────
+
 
 def test_join_snippets_basic():
     snippets = [
@@ -90,6 +98,7 @@ def test_join_snippets_empty_list():
 
 # ── Mock transcript list helpers ──────────────────────────────────────────────
 
+
 def _make_transcript(lang_code: str, is_generated: bool, snippets: list[dict]):
     t = MagicMock()
     t.language_code = lang_code
@@ -100,12 +109,10 @@ def _make_transcript(lang_code: str, is_generated: bool, snippets: list[dict]):
 
 def _make_transcript_list(manual: dict[str, list], generated: dict[str, list]):
     manual_transcripts = {
-        lang: _make_transcript(lang, False, snips)
-        for lang, snips in manual.items()
+        lang: _make_transcript(lang, False, snips) for lang, snips in manual.items()
     }
     generated_transcripts = {
-        lang: _make_transcript(lang, True, snips)
-        for lang, snips in generated.items()
+        lang: _make_transcript(lang, True, snips) for lang, snips in generated.items()
     }
     all_transcripts = list(manual_transcripts.values()) + list(generated_transcripts.values())
 
@@ -134,6 +141,7 @@ _URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 _VID = "dQw4w9WgXcQ"
 
 # ── Language selection tests ──────────────────────────────────────────────────
+
 
 @patch("app.services.transcript.youtube.YouTubeTranscriptApi")
 def test_prefers_manual_english(mock_api):
@@ -166,13 +174,15 @@ def test_falls_back_to_non_english_when_no_english(mock_api):
 @patch("app.services.transcript.youtube.YouTubeTranscriptApi")
 def test_returns_plain_text_string(mock_api):
     mock_api.list_transcripts.return_value = _make_transcript_list(
-        manual={"en": _SNIPPETS}, generated={},
+        manual={"en": _SNIPPETS},
+        generated={},
     )
     result = YouTubeTranscriptProvider().fetch(_URL)
     assert isinstance(result, str) and len(result) > 0
 
 
 # ── Invalid URL tests ─────────────────────────────────────────────────────────
+
 
 def test_invalid_url_raises_before_api_call():
     with pytest.raises(InvalidYouTubeURLError):
@@ -185,6 +195,7 @@ def test_non_url_raises_invalid_url_error():
 
 
 # ── 1.x error-mapping tests: list_transcripts ────────────────────────────────
+
 
 @patch("app.services.transcript.youtube.YouTubeTranscriptApi")
 def test_request_blocked_maps_to_captcha_required(mock_api):
@@ -252,6 +263,7 @@ def test_network_error_wraps_as_transcript_unavailable(mock_api):
 
 # ── 1.x error-mapping tests: transcript.fetch() ──────────────────────────────
 
+
 @patch("app.services.transcript.youtube.YouTubeTranscriptApi")
 def test_request_blocked_during_fetch_maps_to_captcha_required(mock_api):
     """RequestBlocked during content fetch also maps to CaptchaRequiredError."""
@@ -291,6 +303,7 @@ def test_empty_snippets_maps_to_captcha_required(mock_api):
 
 
 # ── Error hierarchy tests ─────────────────────────────────────────────────────
+
 
 def test_captcha_required_is_transcript_unavailable():
     assert issubclass(CaptchaRequiredError, TranscriptUnavailableError)

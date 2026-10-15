@@ -1,0 +1,19 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    email: mahmouds.shahwan@gmail.com
+    server: https://acme-v02.api.letsencrypt.org/directory
+
+    privateKeySecretRef:
+      name: letsencrypt-prod-account-key
+
+    solvers:
+      - http01:
+          gatewayHTTPRoute:
+            parentRefs:
+              - name: recipelens-gateway
+                namespace: recipelens
+                kind: Gateway

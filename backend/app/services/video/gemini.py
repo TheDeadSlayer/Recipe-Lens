@@ -100,21 +100,21 @@ _VIDEO_MIME_TYPE = "video/*"
 
 # ── Retry configuration ────────────────────────────────────────────────────────
 _MAX_ATTEMPTS = 3
-_BASE_DELAY_SECONDS = 2.0   # attempt 1 → ~2s, attempt 2 → ~4s
-_JITTER_SECONDS = 0.5       # uniform random added to each delay
+_BASE_DELAY_SECONDS = 2.0  # attempt 1 → ~2s, attempt 2 → ~4s
+_JITTER_SECONDS = 0.5  # uniform random added to each delay
 
 # HTTP status codes that represent transient provider failures worth retrying.
 _RETRYABLE_STATUS_CODES = {
-    429,   # Too Many Requests — temporary rate limit (not exhausted quota)
-    503,   # Service Unavailable
-    504,   # Gateway Timeout / Deadline Exceeded
+    429,  # Too Many Requests — temporary rate limit (not exhausted quota)
+    503,  # Service Unavailable
+    504,  # Gateway Timeout / Deadline Exceeded
 }
 
 # google.genai status strings that map to transient failures.
 _RETRYABLE_STATUSES = {
     "UNAVAILABLE",
     "DEADLINE_EXCEEDED",
-    "RESOURCE_EXHAUSTED",   # covers 429 from the Gemini side
+    "RESOURCE_EXHAUSTED",  # covers 429 from the Gemini side
 }
 
 
@@ -326,7 +326,7 @@ class GeminiVideoRecipeExtractor(VideoRecipeExtractor):
                 last_exc = exc
 
                 if attempt == _MAX_ATTEMPTS:
-                    break   # exhausted — fall through to final raise
+                    break  # exhausted — fall through to final raise
 
                 delay = self._backoff_delay(attempt, exc)
                 logger.warning(
@@ -483,8 +483,7 @@ class GeminiVideoRecipeExtractor(VideoRecipeExtractor):
         parsed = getattr(response, "parsed", None)
         if isinstance(parsed, RecipeSchema):
             logger.info(
-                "recipe extracted (parsed) model=%s title=%r "
-                "ingredients=%d steps=%d",
+                "recipe extracted (parsed) model=%s title=%r ingredients=%d steps=%d",
                 self._model,
                 parsed.title,
                 len(parsed.ingredients),
@@ -504,8 +503,7 @@ class GeminiVideoRecipeExtractor(VideoRecipeExtractor):
             recipe = RecipeSchema.model_validate_json(raw_text)
         except (ValidationError, ValueError) as exc:
             logger.error(
-                "Gemini response failed schema validation model=%s "
-                "preview=%.200r errors=%s",
+                "Gemini response failed schema validation model=%s preview=%.200r errors=%s",
                 self._model,
                 raw_text,
                 exc,

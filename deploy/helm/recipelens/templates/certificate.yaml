@@ -1,0 +1,14 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: recipelens-tls
+  namespace: {{ .Release.Namespace }}
+spec:
+  secretName: recipelens-tls
+
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+
+  dnsNames:
+    - recipelens-demo.canadacentral.cloudapp.azure.com

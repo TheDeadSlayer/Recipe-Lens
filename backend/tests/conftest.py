@@ -39,9 +39,7 @@ def run_migrations():
         env=env,
     )
     if result.returncode != 0:
-        raise RuntimeError(
-            f"alembic upgrade head failed:\n{result.stdout}\n{result.stderr}"
-        )
+        raise RuntimeError(f"alembic upgrade head failed:\n{result.stdout}\n{result.stderr}")
     yield
     # Teardown: drop all tables so the next run starts clean
     result = subprocess.run(
@@ -51,9 +49,7 @@ def run_migrations():
         env=env,
     )
     if result.returncode != 0:
-        raise RuntimeError(
-            f"alembic downgrade base failed:\n{result.stdout}\n{result.stderr}"
-        )
+        raise RuntimeError(f"alembic downgrade base failed:\n{result.stdout}\n{result.stderr}")
 
 
 @pytest.fixture()

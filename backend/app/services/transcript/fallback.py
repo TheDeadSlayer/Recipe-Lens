@@ -2,10 +2,8 @@ import logging
 
 from app.services.transcript.base import (
     CaptchaRequiredError,
-    InvalidYouTubeURLError,
     NoTranscriptFoundError,
     TranscriptProvider,
-    VideoUnavailableError,
 )
 
 logger = logging.getLogger(__name__)

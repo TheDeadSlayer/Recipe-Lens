@@ -39,6 +39,4 @@ def get_transcript_provider() -> TranscriptProvider:
             fallback=WhisperTranscriptProvider(),
         )
 
-    raise ValueError(
-        f"Unknown TRANSCRIPT_PROVIDER '{provider}'. Valid options: mock, youtube."
-    )
+    raise ValueError(f"Unknown TRANSCRIPT_PROVIDER '{provider}'. Valid options: mock, youtube.")

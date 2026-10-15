@@ -7,14 +7,14 @@ No network access and no real API keys required.
 
 import subprocess
 from pathlib import Path
-from unittest.mock import MagicMock, patch, mock_open
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from app.services.transcript.base import TranscriptUnavailableError
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _make_provider(monkeypatch):
     """
@@ -25,6 +25,7 @@ def _make_provider(monkeypatch):
     monkeypatch.setenv("WHISPER_MODEL", "whisper-1")
     monkeypatch.setenv("WHISPER_TIMEOUT_SECONDS", "300")
     from app.core.config import get_settings
+
     get_settings.cache_clear()
 
     mock_client = MagicMock()
@@ -32,6 +33,7 @@ def _make_provider(monkeypatch):
 
     with patch("app.services.transcript.whisper.openai.OpenAI", return_value=mock_client):
         from app.services.transcript.whisper import WhisperTranscriptProvider
+
         provider = WhisperTranscriptProvider()
 
     return provider, mock_client
@@ -39,6 +41,7 @@ def _make_provider(monkeypatch):
 
 def _fake_run_success(tmpdir: Path):
     """Return a side_effect callable that creates a fake audio file and returns success."""
+
     def _run(cmd, **kwargs):
         # yt-dlp writes to the path specified by -o; create a fake file there
         o_idx = cmd.index("-o")
@@ -50,17 +53,21 @@ def _fake_run_success(tmpdir: Path):
         result.returncode = 0
         result.stderr = ""
         return result
+
     return _run
 
 
 # ── Construction tests ────────────────────────────────────────────────────────
 
+
 def test_missing_api_key_raises_on_construction(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "")
     from app.core.config import get_settings
+
     get_settings.cache_clear()
     try:
         from app.services.transcript.whisper import WhisperTranscriptProvider
+
         with pytest.raises(TranscriptUnavailableError, match="OPENAI_API_KEY"):
             WhisperTranscriptProvider()
     finally:
@@ -69,12 +76,15 @@ def test_missing_api_key_raises_on_construction(monkeypatch):
 
 # ── Happy-path test ───────────────────────────────────────────────────────────
 
+
 def test_fetch_returns_transcript_on_success(monkeypatch, tmp_path):
     provider, mock_client = _make_provider(monkeypatch)
     mock_client.audio.transcriptions.create.return_value = "Preheat the oven to 200 degrees."
 
     url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-    with patch("app.services.transcript.whisper.subprocess.run", side_effect=_fake_run_success(tmp_path)):
+    with patch(
+        "app.services.transcript.whisper.subprocess.run", side_effect=_fake_run_success(tmp_path)
+    ):
         result = provider.fetch(url)
 
     assert result == "Preheat the oven to 200 degrees."
@@ -86,6 +96,7 @@ def test_fetch_returns_transcript_on_success(monkeypatch, tmp_path):
 
 # ── yt-dlp failure tests ──────────────────────────────────────────────────────
 
+
 def test_ytdlp_not_installed_raises_transcript_unavailable(monkeypatch):
     provider, _ = _make_provider(monkeypatch)
     with patch("app.services.transcript.whisper.subprocess.run", side_effect=FileNotFoundError):
@@ -95,8 +106,10 @@ def test_ytdlp_not_installed_raises_transcript_unavailable(monkeypatch):
 
 def test_ytdlp_timeout_raises_transcript_unavailable(monkeypatch):
     provider, _ = _make_provider(monkeypatch)
-    with patch("app.services.transcript.whisper.subprocess.run",
-               side_effect=subprocess.TimeoutExpired(cmd="yt-dlp", timeout=120)):
+    with patch(
+        "app.services.transcript.whisper.subprocess.run",
+        side_effect=subprocess.TimeoutExpired(cmd="yt-dlp", timeout=120),
+    ):
         with pytest.raises(TranscriptUnavailableError, match="timed out"):
             provider.fetch("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
 
@@ -128,6 +141,7 @@ def test_ytdlp_no_output_file_raises_transcript_unavailable(monkeypatch):
 
 # ── OpenAI API error tests ────────────────────────────────────────────────────
 
+
 def _patch_successful_download(provider_fetch_fn, tmp_path):
     """Decorator-style helper: patches subprocess.run with a successful download."""
     return patch(
@@ -138,6 +152,7 @@ def _patch_successful_download(provider_fetch_fn, tmp_path):
 
 def test_whisper_auth_error_raises_transcript_unavailable(monkeypatch, tmp_path):
     import openai as openai_lib
+
     provider, mock_client = _make_provider(monkeypatch)
     mock_client.audio.transcriptions.create.side_effect = openai_lib.AuthenticationError(
         "bad key", response=MagicMock(), body={}
@@ -149,6 +164,7 @@ def test_whisper_auth_error_raises_transcript_unavailable(monkeypatch, tmp_path)
 
 def test_whisper_rate_limit_raises_transcript_unavailable(monkeypatch, tmp_path):
     import openai as openai_lib
+
     provider, mock_client = _make_provider(monkeypatch)
     mock_client.audio.transcriptions.create.side_effect = openai_lib.RateLimitError(
         "rate limited", response=MagicMock(), body={}
@@ -160,6 +176,7 @@ def test_whisper_rate_limit_raises_transcript_unavailable(monkeypatch, tmp_path)
 
 def test_whisper_timeout_raises_transcript_unavailable(monkeypatch, tmp_path):
     import openai as openai_lib
+
     provider, mock_client = _make_provider(monkeypatch)
     mock_client.audio.transcriptions.create.side_effect = openai_lib.APITimeoutError(
         request=MagicMock()
@@ -171,6 +188,7 @@ def test_whisper_timeout_raises_transcript_unavailable(monkeypatch, tmp_path):
 
 def test_whisper_connection_error_raises_transcript_unavailable(monkeypatch, tmp_path):
     import openai as openai_lib
+
     provider, mock_client = _make_provider(monkeypatch)
     mock_client.audio.transcriptions.create.side_effect = openai_lib.APIConnectionError(
         request=MagicMock()

@@ -3,7 +3,9 @@ def test_list_recipes_empty(client):
     assert response.status_code == 200
     data = response.json()
     assert isinstance(data, list)
-    assert data == [], f"Expected empty list but got {len(data)} recipe(s) — test isolation may be broken"
+    assert data == [], (
+        f"Expected empty list but got {len(data)} recipe(s) — test isolation may be broken"
+    )
 
 
 def test_list_recipes_after_job(client):
@@ -27,6 +29,7 @@ def test_get_recipe_structure(client):
     job_id = job_response.json()["job_id"]
 
     import time
+
     for _ in range(10):
         poll = client.get(f"/api/v1/jobs/{job_id}")
         if poll.json()["status"] in ("completed", "failed"):

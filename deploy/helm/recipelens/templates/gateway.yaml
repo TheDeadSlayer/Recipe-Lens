@@ -5,13 +5,32 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "recipelens.labels" . | nindent 4 }}
+
 spec:
   gatewayClassName: approuting-istio
 
+  infrastructure:
+    annotations:
+      service.beta.kubernetes.io/azure-dns-label-name: recipelens-demo
+
   listeners:
     - name: http
+      hostname: recipelens-demo.canadacentral.cloudapp.azure.com
       protocol: HTTP
       port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+
+    - name: https
+      hostname: recipelens-demo.canadacentral.cloudapp.azure.com
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: recipelens-tls
+            kind: Secret
       allowedRoutes:
         namespaces:
           from: Same

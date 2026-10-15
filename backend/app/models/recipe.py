@@ -11,9 +11,7 @@ from app.db.base import Base
 class Recipe(Base):
     __tablename__ = "recipes"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     job_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("jobs.id", ondelete="CASCADE"),
@@ -37,17 +35,13 @@ class Recipe(Base):
 
     # SHA-256 hex digest of canonical recipe content — used for exact duplicate detection.
     # nullable=True to remain compatible with rows created before this column existed.
-    content_hash: Mapped[str | None] = mapped_column(
-        String(64), nullable=True, unique=True
-    )
+    content_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True)
 
     # Extracted YouTube video ID (e.g. "dQw4w9WgXcQ") — used for fast source-level
     # duplicate detection before any Gemini processing.
     # nullable=True so non-YouTube sources and pre-migration rows remain valid.
     # Uniqueness is enforced by a partial index in migration 0005 (NULL rows excluded).
-    source_video_id: Mapped[str | None] = mapped_column(
-        String(20), nullable=True, index=False
-    )
+    source_video_id: Mapped[str | None] = mapped_column(String(20), nullable=True, index=False)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

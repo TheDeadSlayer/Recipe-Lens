@@ -147,9 +147,7 @@ class OpenAIRecipeExtractor(RecipeExtractor):
                 self._model,
                 raw_content,
             )
-            raise RecipeExtractionError(
-                "LLM response could not be parsed as JSON."
-            ) from exc
+            raise RecipeExtractionError("LLM response could not be parsed as JSON.") from exc
 
         # ── Validate against schema ───────────────────────────────────────────
         try:

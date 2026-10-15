@@ -1,0 +1,44 @@
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = [
+    "alembic/versions",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "SIM",  # flake8-simplify
+]
+ignore = [
+    # Long lines in prompts, URLs, and test assertion strings are intentional;
+    # wrapping them reduces readability without adding value.
+    "E501",
+    # datetime.timezone.utc (UP017) is cleaner in Python 3.11+ only; keep disabled
+    # so existing code using the stdlib constant doesn't require mass changes.
+    "UP017",
+    # Nested `with` + `pytest.raises` is a well-established, readable test pattern.
+    "SIM117",
+    # `try/except pass` around `response.text` in the Gemini client is intentional:
+    # the comment explains why the exception is swallowed; suppress() would hide it.
+    "SIM105",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# FastAPI route handlers deliberately call Depends(), Query(), etc. in default
+# argument position — this is the canonical FastAPI dependency-injection pattern.
+"app/api/**/*.py" = ["B008"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.ruff.format]
+# Ruff formatter uses double quotes and the line-length above by default.
+quote-style = "double"
+indent-style = "space"

@@ -10,14 +10,11 @@ Layer 2 dedup (content-hash) is exercised by test_duplicate_recipe.py and
 is unchanged by this feature.
 """
 
-import pytest
-
 from app.models.recipe import Recipe
-from app.schemas.recipe import Ingredient, RecipeSchema
 from app.services.youtube import extract_video_id
 
-
 # ── YouTube URL parsing unit tests ────────────────────────────────────────────
+
 
 class TestExtractVideoId:
     """Unit tests for the server-side YouTube video ID parser."""
@@ -36,7 +33,9 @@ class TestExtractVideoId:
         assert extract_video_id(url) == "dQw4w9WgXcQ"
 
     def test_watch_url_with_timestamp(self):
-        assert extract_video_id("https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42s") == "dQw4w9WgXcQ"
+        assert (
+            extract_video_id("https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42s") == "dQw4w9WgXcQ"
+        )
 
     def test_youtu_be_with_query_params(self):
         assert extract_video_id("https://youtu.be/dQw4w9WgXcQ?si=abc123&t=10") == "dQw4w9WgXcQ"
@@ -86,9 +85,9 @@ class TestExtractVideoId:
 
 # ── API-level Layer 1 dedup tests ─────────────────────────────────────────────
 
+
 def _seed_recipe(db, *, source_url: str, video_id: str) -> Recipe:
     """Insert a job + recipe row with a known source_video_id directly via ORM."""
-    import uuid as _uuid
     from app.models.job import Job as _Job
 
     # A real recipe requires a parent job row because of the FK constraint.
@@ -253,8 +252,17 @@ def test_duplicate_video_inline_recipe_fields(client, db):
         json={"source_url": f"https://www.youtube.com/watch?v={video_id}"},
     )
     recipe = resp.json()["recipe"]
-    for field in ("id", "job_id", "source_url", "source_video_id", "title",
-                  "ingredients", "equipment", "steps", "created_at"):
+    for field in (
+        "id",
+        "job_id",
+        "source_url",
+        "source_video_id",
+        "title",
+        "ingredients",
+        "equipment",
+        "steps",
+        "created_at",
+    ):
         assert field in recipe, f"Field '{field}' missing from inline recipe"
     assert recipe["source_video_id"] == video_id
 

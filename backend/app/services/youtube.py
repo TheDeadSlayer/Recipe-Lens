@@ -65,17 +65,17 @@ def extract_video_id(url: str) -> str | None:
 
     # /shorts/VIDEO_ID
     if path.startswith("/shorts/"):
-        video_id = path[len("/shorts/"):].split("/")[0]
+        video_id = path[len("/shorts/") :].split("/")[0]
         return video_id if _VIDEO_ID_RE.match(video_id) else None
 
     # /embed/VIDEO_ID
     if path.startswith("/embed/"):
-        video_id = path[len("/embed/"):].split("/")[0]
+        video_id = path[len("/embed/") :].split("/")[0]
         return video_id if _VIDEO_ID_RE.match(video_id) else None
 
     # /v/VIDEO_ID  (legacy)
     if path.startswith("/v/"):
-        video_id = path[len("/v/"):].split("/")[0]
+        video_id = path[len("/v/") :].split("/")[0]
         return video_id if _VIDEO_ID_RE.match(video_id) else None
 
     # /watch?v=VIDEO_ID  (most common)

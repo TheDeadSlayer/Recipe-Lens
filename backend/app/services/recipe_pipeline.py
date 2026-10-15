@@ -1,7 +1,6 @@
 import logging
 import uuid
 from datetime import datetime, timezone
-from typing import Union
 
 from sqlalchemy.orm import Session
 
@@ -26,7 +25,7 @@ def run_pipeline(
     source_url: str,
     db: Session,
     transcript_provider: TranscriptProvider,
-    recipe_extractor: Union[RecipeExtractor, VideoRecipeExtractor],
+    recipe_extractor: RecipeExtractor | VideoRecipeExtractor,
 ) -> None:
     """
     Runs the full transcript → extraction → persist pipeline for a job.

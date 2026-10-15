@@ -19,13 +19,12 @@ the __init__ import statements resolve to our mocks.
 """
 
 import json
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from app.schemas.recipe import Ingredient, RecipeSchema, RecipeVideoClassification
 from app.services.llm.base import RecipeExtractionError
-
 
 # ── Shared test data ──────────────────────────────────────────────────────────
 
@@ -53,6 +52,7 @@ _YOUTUBE_URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 # Defined here so tests run without the SDK installed.  They mirror the
 # google.genai.errors hierarchy that _is_transient() inspects.
 
+
 class _FakeAPIError(Exception):
     def __init__(self, code: int = 500, status: str = "INTERNAL"):
         self.code = code
@@ -60,16 +60,21 @@ class _FakeAPIError(Exception):
         self.response = None
         super().__init__(f"{code} {status}")
 
+
 class _FakeServerError(_FakeAPIError):
     """Mirrors google.genai.errors.ServerError (5xx)."""
+
     pass
+
 
 class _FakeClientError(_FakeAPIError):
     """Mirrors google.genai.errors.ClientError (4xx)."""
+
     pass
 
 
 # ── Mock factory helpers ──────────────────────────────────────────────────────
+
 
 def _make_mock_types():
     """Return a minimal mock of google.genai.types."""
@@ -101,9 +106,7 @@ def _make_extractor(mock_client=None, mock_types=None):
     """
     import app.services.video.gemini as gemini_mod
 
-    extractor = gemini_mod.GeminiVideoRecipeExtractor.__new__(
-        gemini_mod.GeminiVideoRecipeExtractor
-    )
+    extractor = gemini_mod.GeminiVideoRecipeExtractor.__new__(gemini_mod.GeminiVideoRecipeExtractor)
     extractor._model = "gemini-2.0-flash"
     extractor._timeout_ms = 300_000
     extractor._client = mock_client or MagicMock()
@@ -132,17 +135,22 @@ def _patch_is_transient(module, fake_server_cls, fake_client_cls):
 
 # ── Construction / configuration tests ───────────────────────────────────────
 
-class TestGeminiExtractorConstruction:
 
+class TestGeminiExtractorConstruction:
     def _reload_with_mock_sdk(self, mock_genai, mock_types):
         """Reload the gemini module with fake SDK entries in sys.modules."""
         import importlib
+
         import app.services.video.gemini as gemini_mod
-        with patch.dict("sys.modules", {
-            "google": MagicMock(genai=mock_genai),
-            "google.genai": mock_genai,
-            "google.genai.types": mock_types,
-        }):
+
+        with patch.dict(
+            "sys.modules",
+            {
+                "google": MagicMock(genai=mock_genai),
+                "google.genai": mock_genai,
+                "google.genai.types": mock_types,
+            },
+        ):
             importlib.reload(gemini_mod)
             yield gemini_mod
 
@@ -150,17 +158,23 @@ class TestGeminiExtractorConstruction:
         monkeypatch.setenv("GEMINI_API_KEY", "")
         monkeypatch.setenv("GEMINI_MODEL", "gemini-2.0-flash")
         from app.core.config import get_settings
+
         get_settings.cache_clear()
         try:
             mock_genai = MagicMock()
             mock_types = _make_mock_types()
             import importlib
+
             import app.services.video.gemini as gemini_mod
-            with patch.dict("sys.modules", {
-                "google": MagicMock(genai=mock_genai),
-                "google.genai": mock_genai,
-                "google.genai.types": mock_types,
-            }):
+
+            with patch.dict(
+                "sys.modules",
+                {
+                    "google": MagicMock(genai=mock_genai),
+                    "google.genai": mock_genai,
+                    "google.genai.types": mock_types,
+                },
+            ):
                 importlib.reload(gemini_mod)
                 with pytest.raises(RecipeExtractionError, match="GEMINI_API_KEY"):
                     gemini_mod.GeminiVideoRecipeExtractor()
@@ -171,17 +185,23 @@ class TestGeminiExtractorConstruction:
         monkeypatch.setenv("GEMINI_API_KEY", "test-key")
         monkeypatch.setenv("GEMINI_MODEL", "")
         from app.core.config import get_settings
+
         get_settings.cache_clear()
         try:
             mock_genai = MagicMock()
             mock_types = _make_mock_types()
             import importlib
+
             import app.services.video.gemini as gemini_mod
-            with patch.dict("sys.modules", {
-                "google": MagicMock(genai=mock_genai),
-                "google.genai": mock_genai,
-                "google.genai.types": mock_types,
-            }):
+
+            with patch.dict(
+                "sys.modules",
+                {
+                    "google": MagicMock(genai=mock_genai),
+                    "google.genai": mock_genai,
+                    "google.genai.types": mock_types,
+                },
+            ):
                 importlib.reload(gemini_mod)
                 with pytest.raises(RecipeExtractionError, match="GEMINI_MODEL"):
                     gemini_mod.GeminiVideoRecipeExtractor()
@@ -190,6 +210,7 @@ class TestGeminiExtractorConstruction:
 
 
 # ── Structured output — schema enforcement tests ──────────────────────────────
+
 
 class TestGeminiStructuredOutput:
     """
@@ -205,9 +226,7 @@ class TestGeminiStructuredOutput:
         """response_schema=RecipeSchema must be in every GenerateContentConfig call."""
         mock_types = _make_mock_types()
         mock_client = MagicMock()
-        mock_client.models.generate_content.return_value = _make_response(
-            parsed=_VALID_RECIPE
-        )
+        mock_client.models.generate_content.return_value = _make_response(parsed=_VALID_RECIPE)
         extractor = _make_extractor(mock_client, mock_types)
         extractor.extract_from_url(_YOUTUBE_URL)
 
@@ -217,9 +236,7 @@ class TestGeminiStructuredOutput:
     def test_parsed_response_used_directly(self):
         """When response.parsed is a RecipeSchema instance it is returned as-is."""
         mock_client = MagicMock()
-        mock_client.models.generate_content.return_value = _make_response(
-            parsed=_VALID_RECIPE
-        )
+        mock_client.models.generate_content.return_value = _make_response(parsed=_VALID_RECIPE)
         extractor = _make_extractor(mock_client)
         result = extractor.extract_from_url(_YOUTUBE_URL)
 
@@ -228,9 +245,7 @@ class TestGeminiStructuredOutput:
     def test_equipment_is_list_of_strings(self):
         """equipment must come back as list[str] regardless of input path."""
         mock_client = MagicMock()
-        mock_client.models.generate_content.return_value = _make_response(
-            parsed=_VALID_RECIPE
-        )
+        mock_client.models.generate_content.return_value = _make_response(parsed=_VALID_RECIPE)
         extractor = _make_extractor(mock_client)
         result = extractor.extract_from_url(_YOUTUBE_URL)
 
@@ -262,9 +277,7 @@ class TestGeminiStructuredOutput:
     def test_ingredients_are_structured_objects(self):
         """ingredients must be a list of Ingredient(name=, quantity=) objects."""
         mock_client = MagicMock()
-        mock_client.models.generate_content.return_value = _make_response(
-            parsed=_VALID_RECIPE
-        )
+        mock_client.models.generate_content.return_value = _make_response(parsed=_VALID_RECIPE)
         extractor = _make_extractor(mock_client)
         result = extractor.extract_from_url(_YOUTUBE_URL)
 
@@ -336,21 +349,17 @@ class TestGeminiStructuredOutput:
 
 # ── Happy-path tests ──────────────────────────────────────────────────────────
 
-class TestGeminiExtractorHappyPath:
 
+class TestGeminiExtractorHappyPath:
     def test_returns_recipe_schema_instance(self):
         mock_client = MagicMock()
-        mock_client.models.generate_content.return_value = _make_response(
-            parsed=_VALID_RECIPE
-        )
+        mock_client.models.generate_content.return_value = _make_response(parsed=_VALID_RECIPE)
         result = _make_extractor(mock_client).extract_from_url(_YOUTUBE_URL)
         assert isinstance(result, RecipeSchema)
 
     def test_calls_generate_content_once_on_success(self):
         mock_client = MagicMock()
-        mock_client.models.generate_content.return_value = _make_response(
-            parsed=_VALID_RECIPE
-        )
+        mock_client.models.generate_content.return_value = _make_response(parsed=_VALID_RECIPE)
         extractor = _make_extractor(mock_client)
         extractor.extract_from_url(_YOUTUBE_URL)
         mock_client.models.generate_content.assert_called_once()
@@ -358,9 +367,7 @@ class TestGeminiExtractorHappyPath:
     def test_passes_video_part_with_correct_mime_type(self):
         mock_types = _make_mock_types()
         mock_client = MagicMock()
-        mock_client.models.generate_content.return_value = _make_response(
-            parsed=_VALID_RECIPE
-        )
+        mock_client.models.generate_content.return_value = _make_response(parsed=_VALID_RECIPE)
         extractor = _make_extractor(mock_client, mock_types)
         extractor.extract_from_url(_YOUTUBE_URL)
 
@@ -382,15 +389,14 @@ class TestGeminiExtractorHappyPath:
             fat_g=None,
         )
         mock_client = MagicMock()
-        mock_client.models.generate_content.return_value = _make_response(
-            parsed=recipe_nulls
-        )
+        mock_client.models.generate_content.return_value = _make_response(parsed=recipe_nulls)
         result = _make_extractor(mock_client).extract_from_url(_YOUTUBE_URL)
         assert result.calories is None
         assert result.description is None
 
 
 # ── Retry tests ───────────────────────────────────────────────────────────────
+
 
 class TestGeminiRetry:
     """
@@ -416,8 +422,10 @@ class TestGeminiRetry:
         ]
         extractor = _make_extractor(mock_client)
 
-        with patch.object(gemini_mod, "time") as mock_time, \
-             _patch_is_transient(gemini_mod, _FakeServerError, _FakeClientError):
+        with (
+            patch.object(gemini_mod, "time") as mock_time,
+            _patch_is_transient(gemini_mod, _FakeServerError, _FakeClientError),
+        ):
             result = extractor.extract_from_url(_YOUTUBE_URL)
 
         assert isinstance(result, RecipeSchema)
@@ -435,8 +443,10 @@ class TestGeminiRetry:
         ]
         extractor = _make_extractor(mock_client)
 
-        with patch.object(gemini_mod, "time") as mock_time, \
-             _patch_is_transient(gemini_mod, _FakeServerError, _FakeClientError):
+        with (
+            patch.object(gemini_mod, "time"),
+            _patch_is_transient(gemini_mod, _FakeServerError, _FakeClientError),
+        ):
             result = extractor.extract_from_url(_YOUTUBE_URL)
 
         assert isinstance(result, RecipeSchema)
@@ -454,8 +464,10 @@ class TestGeminiRetry:
         ]
         extractor = _make_extractor(mock_client)
 
-        with patch.object(gemini_mod, "time") as mock_time, \
-             _patch_is_transient(gemini_mod, _FakeServerError, _FakeClientError):
+        with (
+            patch.object(gemini_mod, "time") as mock_time,
+            _patch_is_transient(gemini_mod, _FakeServerError, _FakeClientError),
+        ):
             result = extractor.extract_from_url(_YOUTUBE_URL)
 
         assert isinstance(result, RecipeSchema)
@@ -473,8 +485,10 @@ class TestGeminiRetry:
         ]
         extractor = _make_extractor(mock_client)
 
-        with patch.object(gemini_mod, "time"), \
-             _patch_is_transient(gemini_mod, _FakeServerError, _FakeClientError):
+        with (
+            patch.object(gemini_mod, "time"),
+            _patch_is_transient(gemini_mod, _FakeServerError, _FakeClientError),
+        ):
             result = extractor.extract_from_url(_YOUTUBE_URL)
 
         assert isinstance(result, RecipeSchema)
@@ -493,8 +507,10 @@ class TestGeminiRetry:
         ]
         extractor = _make_extractor(mock_client)
 
-        with patch.object(gemini_mod, "time"), \
-             _patch_is_transient(gemini_mod, _FakeServerError, _FakeClientError):
+        with (
+            patch.object(gemini_mod, "time"),
+            _patch_is_transient(gemini_mod, _FakeServerError, _FakeClientError),
+        ):
             with pytest.raises(RecipeExtractionError):
                 extractor.extract_from_url(_YOUTUBE_URL)
 
@@ -512,8 +528,10 @@ class TestGeminiRetry:
         ]
         extractor = _make_extractor(mock_client)
 
-        with patch.object(gemini_mod, "time") as mock_time, \
-             _patch_is_transient(gemini_mod, _FakeServerError, _FakeClientError):
+        with (
+            patch.object(gemini_mod, "time") as mock_time,
+            _patch_is_transient(gemini_mod, _FakeServerError, _FakeClientError),
+        ):
             with pytest.raises(RecipeExtractionError):
                 extractor.extract_from_url(_YOUTUBE_URL)
 
@@ -527,13 +545,13 @@ class TestGeminiRetry:
         import app.services.video.gemini as gemini_mod
 
         mock_client = MagicMock()
-        mock_client.models.generate_content.side_effect = _FakeClientError(
-            401, "UNAUTHENTICATED"
-        )
+        mock_client.models.generate_content.side_effect = _FakeClientError(401, "UNAUTHENTICATED")
         extractor = _make_extractor(mock_client)
 
-        with patch.object(gemini_mod, "time") as mock_time, \
-             _patch_is_transient(gemini_mod, _FakeServerError, _FakeClientError):
+        with (
+            patch.object(gemini_mod, "time") as mock_time,
+            _patch_is_transient(gemini_mod, _FakeServerError, _FakeClientError),
+        ):
             with pytest.raises(RecipeExtractionError):
                 extractor.extract_from_url(_YOUTUBE_URL)
 
@@ -545,13 +563,13 @@ class TestGeminiRetry:
         import app.services.video.gemini as gemini_mod
 
         mock_client = MagicMock()
-        mock_client.models.generate_content.side_effect = _FakeClientError(
-            400, "INVALID_ARGUMENT"
-        )
+        mock_client.models.generate_content.side_effect = _FakeClientError(400, "INVALID_ARGUMENT")
         extractor = _make_extractor(mock_client)
 
-        with patch.object(gemini_mod, "time") as mock_time, \
-             _patch_is_transient(gemini_mod, _FakeServerError, _FakeClientError):
+        with (
+            patch.object(gemini_mod, "time") as mock_time,
+            _patch_is_transient(gemini_mod, _FakeServerError, _FakeClientError),
+        ):
             with pytest.raises(RecipeExtractionError):
                 extractor.extract_from_url(_YOUTUBE_URL)
 
@@ -569,8 +587,10 @@ class TestGeminiRetry:
         ]
         extractor = _make_extractor(mock_client)
 
-        with patch.object(gemini_mod, "time"), \
-             _patch_is_transient(gemini_mod, _FakeServerError, _FakeClientError):
+        with (
+            patch.object(gemini_mod, "time"),
+            _patch_is_transient(gemini_mod, _FakeServerError, _FakeClientError),
+        ):
             result = extractor.extract_from_url(_YOUTUBE_URL)
 
         assert isinstance(result, RecipeSchema)
@@ -591,8 +611,10 @@ class TestGeminiRetry:
         )
         extractor = _make_extractor(mock_client)
 
-        with patch.object(gemini_mod, "time") as mock_time, \
-             _patch_is_transient(gemini_mod, _FakeServerError, _FakeClientError):
+        with (
+            patch.object(gemini_mod, "time") as mock_time,
+            _patch_is_transient(gemini_mod, _FakeServerError, _FakeClientError),
+        ):
             with pytest.raises(RecipeExtractionError, match="schema"):
                 extractor.extract_from_url(_YOUTUBE_URL)
 
@@ -617,8 +639,10 @@ class TestGeminiRetry:
         def _record_sleep(seconds):
             sleep_calls.append(seconds)
 
-        with patch.object(gemini_mod, "time") as mock_time, \
-             _patch_is_transient(gemini_mod, _FakeServerError, _FakeClientError):
+        with (
+            patch.object(gemini_mod, "time") as mock_time,
+            _patch_is_transient(gemini_mod, _FakeServerError, _FakeClientError),
+        ):
             mock_time.sleep.side_effect = _record_sleep
             with pytest.raises(RecipeExtractionError):
                 extractor.extract_from_url(_YOUTUBE_URL)
@@ -644,16 +668,19 @@ class TestGeminiRetry:
         extractor = _make_extractor(mock_client)
         sleep_calls = []
 
-        with patch.object(gemini_mod, "time") as mock_time, \
-             _patch_is_transient(gemini_mod, _FakeServerError, _FakeClientError):
+        with (
+            patch.object(gemini_mod, "time") as mock_time,
+            _patch_is_transient(gemini_mod, _FakeServerError, _FakeClientError),
+        ):
             mock_time.sleep.side_effect = lambda s: sleep_calls.append(s)
             extractor.extract_from_url(_YOUTUBE_URL)
 
         assert len(sleep_calls) == 1
-        assert sleep_calls[0] >= 7.0   # at least the Retry-After value
+        assert sleep_calls[0] >= 7.0  # at least the Retry-After value
 
 
 # ── Pipeline integration — VideoRecipeExtractor fast-path ─────────────────────
+
 
 class TestPipelineVideoFastPath:
     """
@@ -669,8 +696,9 @@ class TestPipelineVideoFastPath:
 
     def test_video_extractor_bypasses_transcript_provider(self):
         import uuid
-        from app.services.video.base import VideoRecipeExtractor
+
         from app.services.recipe_pipeline import run_pipeline
+        from app.services.video.base import VideoRecipeExtractor
 
         job = MagicMock()
         job.id = uuid.uuid4()
@@ -705,6 +733,7 @@ class TestPipelineVideoFastPath:
 
     def test_text_extractor_calls_transcript_provider(self):
         import uuid
+
         from app.services.llm.base import RecipeExtractor
         from app.services.recipe_pipeline import run_pipeline
 
@@ -742,6 +771,7 @@ class TestPipelineVideoFastPath:
 
 # ── Classification unit tests ──────────────────────────────────────────────────
 
+
 class TestGeminiClassification:
     """
     Unit tests for classify_video() and its supporting private methods.
@@ -758,9 +788,7 @@ class TestGeminiClassification:
             is_recipe=True,
             reason="The video demonstrates preparation of a pasta dish step by step.",
         )
-        mock_client.models.generate_content.return_value = _make_response(
-            parsed=classification
-        )
+        mock_client.models.generate_content.return_value = _make_response(parsed=classification)
         extractor = _make_extractor(mock_client)
         result = extractor.classify_video(_YOUTUBE_URL)
 
@@ -774,9 +802,7 @@ class TestGeminiClassification:
             is_recipe=False,
             reason="The video is a restaurant review and contains no preparation instructions.",
         )
-        mock_client.models.generate_content.return_value = _make_response(
-            parsed=classification
-        )
+        mock_client.models.generate_content.return_value = _make_response(parsed=classification)
         extractor = _make_extractor(mock_client)
         result = extractor.classify_video(_YOUTUBE_URL)
 
@@ -790,9 +816,7 @@ class TestGeminiClassification:
             is_recipe=False,
             reason="The video is a car review and has no food or drink content.",
         )
-        mock_client.models.generate_content.return_value = _make_response(
-            parsed=classification
-        )
+        mock_client.models.generate_content.return_value = _make_response(parsed=classification)
         extractor = _make_extractor(mock_client)
         result = extractor.classify_video(_YOUTUBE_URL)
 
@@ -805,9 +829,7 @@ class TestGeminiClassification:
             is_recipe=True,
             reason="The short clip visually demonstrates how to make a smoothie.",
         )
-        mock_client.models.generate_content.return_value = _make_response(
-            parsed=classification
-        )
+        mock_client.models.generate_content.return_value = _make_response(parsed=classification)
         short_url = "https://www.youtube.com/shorts/abc123"
         extractor = _make_extractor(mock_client)
         result = extractor.classify_video(short_url)
@@ -843,6 +865,7 @@ class TestGeminiClassification:
     def test_classify_text_fallback_valid_json(self):
         """Valid JSON classification in response.text is accepted when parsed is None."""
         import json
+
         mock_client = MagicMock()
         mock_client.models.generate_content.return_value = _make_response(
             parsed=None,
@@ -868,6 +891,7 @@ class TestGeminiClassification:
     def test_classify_text_fallback_missing_field_raises(self):
         """JSON missing 'reason' fails schema validation for classification."""
         import json
+
         mock_client = MagicMock()
         mock_client.models.generate_content.return_value = _make_response(
             parsed=None,
@@ -890,8 +914,10 @@ class TestGeminiClassification:
         ]
         extractor = _make_extractor(mock_client)
 
-        with patch.object(gemini_mod, "time"), \
-             _patch_is_transient(gemini_mod, _FakeServerError, _FakeClientError):
+        with (
+            patch.object(gemini_mod, "time"),
+            _patch_is_transient(gemini_mod, _FakeServerError, _FakeClientError),
+        ):
             result = extractor.classify_video(_YOUTUBE_URL)
 
         assert result.is_recipe is True
@@ -902,13 +928,13 @@ class TestGeminiClassification:
         import app.services.video.gemini as gemini_mod
 
         mock_client = MagicMock()
-        mock_client.models.generate_content.side_effect = _FakeClientError(
-            401, "UNAUTHENTICATED"
-        )
+        mock_client.models.generate_content.side_effect = _FakeClientError(401, "UNAUTHENTICATED")
         extractor = _make_extractor(mock_client)
 
-        with patch.object(gemini_mod, "time") as mock_time, \
-             _patch_is_transient(gemini_mod, _FakeServerError, _FakeClientError):
+        with (
+            patch.object(gemini_mod, "time") as mock_time,
+            _patch_is_transient(gemini_mod, _FakeServerError, _FakeClientError),
+        ):
             with pytest.raises(RecipeExtractionError):
                 extractor.classify_video(_YOUTUBE_URL)
 
@@ -927,8 +953,10 @@ class TestGeminiClassification:
         ]
         extractor = _make_extractor(mock_client)
 
-        with patch.object(gemini_mod, "time"), \
-             _patch_is_transient(gemini_mod, _FakeServerError, _FakeClientError):
+        with (
+            patch.object(gemini_mod, "time"),
+            _patch_is_transient(gemini_mod, _FakeServerError, _FakeClientError),
+        ):
             with pytest.raises(RecipeExtractionError):
                 extractor.classify_video(_YOUTUBE_URL)
 
@@ -936,6 +964,7 @@ class TestGeminiClassification:
 
 
 # ── Classification → extraction pipeline tests ────────────────────────────────
+
 
 class TestClassificationExtractionPipeline:
     """
@@ -953,6 +982,7 @@ class TestClassificationExtractionPipeline:
 
     def _make_job(self):
         import uuid
+
         job = MagicMock()
         job.id = uuid.uuid4()
         job.status = "pending"
@@ -964,8 +994,8 @@ class TestClassificationExtractionPipeline:
 
     def test_recipe_video_classification_true_extraction_runs(self):
         """When classify_video returns is_recipe=True, extract_from_url is called."""
-        from app.services.video.base import VideoRecipeExtractor
         from app.services.recipe_pipeline import run_pipeline
+        from app.services.video.base import VideoRecipeExtractor
 
         job = self._make_job()
         db = self._make_mock_db_session(job)
@@ -998,8 +1028,8 @@ class TestClassificationExtractionPipeline:
 
     def test_non_recipe_video_classification_false_extraction_never_runs(self):
         """When classify_video returns is_recipe=False, extract_from_url is never called."""
-        from app.services.video.base import VideoRecipeExtractor
         from app.services.recipe_pipeline import run_pipeline
+        from app.services.video.base import VideoRecipeExtractor
 
         job = self._make_job()
         db = self._make_mock_db_session(job)
@@ -1030,8 +1060,8 @@ class TestClassificationExtractionPipeline:
 
     def test_non_recipe_job_stores_classification_reason(self):
         """classification_reason on the job must contain Gemini's explanation."""
-        from app.services.video.base import VideoRecipeExtractor
         from app.services.recipe_pipeline import run_pipeline
+        from app.services.video.base import VideoRecipeExtractor
 
         job = self._make_job()
         db = self._make_mock_db_session(job)
@@ -1057,8 +1087,8 @@ class TestClassificationExtractionPipeline:
 
     def test_non_recipe_job_recipe_id_is_none(self):
         """A not_recipe job must never have a recipe_id assigned."""
-        from app.services.video.base import VideoRecipeExtractor
         from app.services.recipe_pipeline import run_pipeline
+        from app.services.video.base import VideoRecipeExtractor
 
         job = self._make_job()
         job.recipe_id = None
@@ -1083,8 +1113,8 @@ class TestClassificationExtractionPipeline:
 
     def test_non_recipe_no_recipe_row_created(self):
         """No Recipe ORM object is added to the session for a not_recipe job."""
-        from app.services.video.base import VideoRecipeExtractor
         from app.services.recipe_pipeline import run_pipeline
+        from app.services.video.base import VideoRecipeExtractor
 
         job = self._make_job()
         db = self._make_mock_db_session(job)
@@ -1110,8 +1140,8 @@ class TestClassificationExtractionPipeline:
 
     def test_recipe_with_null_macros_succeeds(self):
         """A recipe with no calorie/macro data still completes successfully."""
-        from app.services.video.base import VideoRecipeExtractor
         from app.services.recipe_pipeline import run_pipeline
+        from app.services.video.base import VideoRecipeExtractor
 
         job = self._make_job()
         db = self._make_mock_db_session(job)
@@ -1144,8 +1174,8 @@ class TestClassificationExtractionPipeline:
 
     def test_recipe_with_no_description_succeeds(self):
         """A recipe with description=None still completes successfully."""
-        from app.services.video.base import VideoRecipeExtractor
         from app.services.recipe_pipeline import run_pipeline
+        from app.services.video.base import VideoRecipeExtractor
 
         job = self._make_job()
         db = self._make_mock_db_session(job)
@@ -1175,8 +1205,8 @@ class TestClassificationExtractionPipeline:
 
     def test_recipe_with_empty_equipment_succeeds(self):
         """A recipe with an empty equipment list still completes successfully."""
-        from app.services.video.base import VideoRecipeExtractor
         from app.services.recipe_pipeline import run_pipeline
+        from app.services.video.base import VideoRecipeExtractor
 
         job = self._make_job()
         db = self._make_mock_db_session(job)
@@ -1211,8 +1241,9 @@ class TestClassificationExtractionPipeline:
         job reuses the existing recipe row (dedup behaviour is unchanged).
         """
         import uuid
-        from app.services.video.base import VideoRecipeExtractor
+
         from app.services.recipe_pipeline import run_pipeline
+        from app.services.video.base import VideoRecipeExtractor
 
         recipe = RecipeSchema(
             title="Dup Recipe",

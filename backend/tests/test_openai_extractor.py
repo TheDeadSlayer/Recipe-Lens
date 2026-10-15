@@ -11,9 +11,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from app.schemas.recipe import Ingredient, RecipeSchema
+from app.schemas.recipe import RecipeSchema
 from app.services.llm.base import RecipeExtractionError
-
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -56,19 +55,23 @@ def _make_extractor(mock_openai_cls, return_content: str):
     mock_client.chat.completions.create.return_value = _make_openai_response(return_content)
     mock_openai_cls.return_value = mock_client
     from app.services.llm.openai import OpenAIRecipeExtractor
+
     return OpenAIRecipeExtractor()
 
 
 # ── Construction / configuration tests ───────────────────────────────────────
+
 
 def test_missing_api_key_raises_on_construction(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "")
     monkeypatch.setenv("OPENAI_MODEL", "gpt-4o")
     # Clear the lru_cache so monkeypatched env is picked up.
     from app.core.config import get_settings
+
     get_settings.cache_clear()
     try:
         from app.services.llm.openai import OpenAIRecipeExtractor
+
         with pytest.raises(RecipeExtractionError, match="OPENAI_API_KEY"):
             OpenAIRecipeExtractor()
     finally:
@@ -79,9 +82,11 @@ def test_missing_model_raises_on_construction(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test-key")
     monkeypatch.setenv("OPENAI_MODEL", "")
     from app.core.config import get_settings
+
     get_settings.cache_clear()
     try:
         from app.services.llm.openai import OpenAIRecipeExtractor
+
         with pytest.raises(RecipeExtractionError, match="OPENAI_MODEL"):
             OpenAIRecipeExtractor()
     finally:
@@ -90,11 +95,13 @@ def test_missing_model_raises_on_construction(monkeypatch):
 
 # ── Happy-path tests ──────────────────────────────────────────────────────────
 
+
 @patch("app.services.llm.openai.openai.OpenAI")
 def test_extract_returns_recipe_schema(mock_openai_cls, monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
     monkeypatch.setenv("OPENAI_MODEL", "gpt-4o")
     from app.core.config import get_settings
+
     get_settings.cache_clear()
     try:
         extractor = _make_extractor(mock_openai_cls, json.dumps(_VALID_RECIPE_DICT))
@@ -113,10 +120,17 @@ def test_extract_handles_null_optional_fields(mock_openai_cls, monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
     monkeypatch.setenv("OPENAI_MODEL", "gpt-4o")
     from app.core.config import get_settings
+
     get_settings.cache_clear()
     try:
-        recipe_dict = {**_VALID_RECIPE_DICT, "calories": None, "protein_g": None,
-                       "carbs_g": None, "fat_g": None, "description": None}
+        recipe_dict = {
+            **_VALID_RECIPE_DICT,
+            "calories": None,
+            "protein_g": None,
+            "carbs_g": None,
+            "fat_g": None,
+            "description": None,
+        }
         extractor = _make_extractor(mock_openai_cls, json.dumps(recipe_dict))
         result = extractor.extract("Some transcript.")
         assert result.calories is None
@@ -127,11 +141,13 @@ def test_extract_handles_null_optional_fields(mock_openai_cls, monkeypatch):
 
 # ── Malformed response tests ──────────────────────────────────────────────────
 
+
 @patch("app.services.llm.openai.openai.OpenAI")
 def test_non_json_response_raises_extraction_error(mock_openai_cls, monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
     monkeypatch.setenv("OPENAI_MODEL", "gpt-4o")
     from app.core.config import get_settings
+
     get_settings.cache_clear()
     try:
         extractor = _make_extractor(mock_openai_cls, "Here is your recipe: ...")
@@ -147,6 +163,7 @@ def test_missing_required_field_raises_extraction_error(mock_openai_cls, monkeyp
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
     monkeypatch.setenv("OPENAI_MODEL", "gpt-4o")
     from app.core.config import get_settings
+
     get_settings.cache_clear()
     try:
         bad_dict = {k: v for k, v in _VALID_RECIPE_DICT.items() if k != "title"}
@@ -163,6 +180,7 @@ def test_wrong_ingredient_type_raises_extraction_error(mock_openai_cls, monkeypa
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
     monkeypatch.setenv("OPENAI_MODEL", "gpt-4o")
     from app.core.config import get_settings
+
     get_settings.cache_clear()
     try:
         bad_dict = {**_VALID_RECIPE_DICT, "ingredients": ["Pasta", "Sauce"]}
@@ -178,6 +196,7 @@ def test_empty_response_raises_extraction_error(mock_openai_cls, monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
     monkeypatch.setenv("OPENAI_MODEL", "gpt-4o")
     from app.core.config import get_settings
+
     get_settings.cache_clear()
     try:
         extractor = _make_extractor(mock_openai_cls, "")
@@ -189,75 +208,86 @@ def test_empty_response_raises_extraction_error(mock_openai_cls, monkeypatch):
 
 # ── API error tests ───────────────────────────────────────────────────────────
 
+
 def _extractor_with_api_error(mock_openai_cls, monkeypatch, side_effect):
     """Shared setup: build an extractor whose create() call raises side_effect."""
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
     monkeypatch.setenv("OPENAI_MODEL", "gpt-4o")
     from app.core.config import get_settings
+
     get_settings.cache_clear()
     mock_client = MagicMock()
     mock_client.timeout = 60
     mock_client.chat.completions.create.side_effect = side_effect
     mock_openai_cls.return_value = mock_client
     from app.services.llm.openai import OpenAIRecipeExtractor
+
     return OpenAIRecipeExtractor()
 
 
 @patch("app.services.llm.openai.openai.OpenAI")
 def test_authentication_error_raises_extraction_error(mock_openai_cls, monkeypatch):
     import openai as openai_lib
+
     extractor = _extractor_with_api_error(
-        mock_openai_cls, monkeypatch,
-        openai_lib.AuthenticationError("bad key", response=MagicMock(), body={})
+        mock_openai_cls,
+        monkeypatch,
+        openai_lib.AuthenticationError("bad key", response=MagicMock(), body={}),
     )
     try:
         with pytest.raises(RecipeExtractionError, match="authentication"):
             extractor.extract("transcript")
     finally:
         from app.core.config import get_settings
+
         get_settings.cache_clear()
 
 
 @patch("app.services.llm.openai.openai.OpenAI")
 def test_rate_limit_error_raises_extraction_error(mock_openai_cls, monkeypatch):
     import openai as openai_lib
+
     extractor = _extractor_with_api_error(
-        mock_openai_cls, monkeypatch,
-        openai_lib.RateLimitError("rate limited", response=MagicMock(), body={})
+        mock_openai_cls,
+        monkeypatch,
+        openai_lib.RateLimitError("rate limited", response=MagicMock(), body={}),
     )
     try:
         with pytest.raises(RecipeExtractionError, match="rate limit"):
             extractor.extract("transcript")
     finally:
         from app.core.config import get_settings
+
         get_settings.cache_clear()
 
 
 @patch("app.services.llm.openai.openai.OpenAI")
 def test_timeout_error_raises_extraction_error(mock_openai_cls, monkeypatch):
     import openai as openai_lib
+
     extractor = _extractor_with_api_error(
-        mock_openai_cls, monkeypatch,
-        openai_lib.APITimeoutError(request=MagicMock())
+        mock_openai_cls, monkeypatch, openai_lib.APITimeoutError(request=MagicMock())
     )
     try:
         with pytest.raises(RecipeExtractionError, match="timed out"):
             extractor.extract("transcript")
     finally:
         from app.core.config import get_settings
+
         get_settings.cache_clear()
 
 
 @patch("app.services.llm.openai.openai.OpenAI")
 def test_connection_error_raises_extraction_error(mock_openai_cls, monkeypatch):
     import openai as openai_lib
+
     extractor = _extractor_with_api_error(
-        mock_openai_cls, monkeypatch,
-        openai_lib.APIConnectionError(request=MagicMock())
+        mock_openai_cls, monkeypatch, openai_lib.APIConnectionError(request=MagicMock())
     )
     try:
         with pytest.raises(RecipeExtractionError, match="connect"):
             extractor.extract("transcript")
     finally:
         from app.core.config import get_settings
+
         get_settings.cache_clear()

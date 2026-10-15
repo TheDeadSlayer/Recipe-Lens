@@ -13,10 +13,10 @@ import time
 from app.models.recipe import Recipe
 from app.schemas.recipe import Ingredient, RecipeSchema
 from app.services.llm.base import RecipeExtractor
-from app.services.llm.mock import MockRecipeExtractor, _MOCK_RECIPE
-
+from app.services.llm.mock import _MOCK_RECIPE, MockRecipeExtractor
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _wait_for_terminal(client, job_id: str, *, retries: int = 10) -> dict:
     """Poll until the job reaches a terminal state and return its payload."""
@@ -57,6 +57,7 @@ def _make_extractor(overrides: dict) -> RecipeExtractor:
 
 # ── Duplicate tests ───────────────────────────────────────────────────────────
 
+
 def test_duplicate_submission_creates_one_recipe_row(client, db):
     """Two jobs with identical content must produce exactly one recipe row."""
     job1 = _submit_and_wait(client, "https://example.com/dup-video")
@@ -80,6 +81,7 @@ def test_duplicate_jobs_both_complete(client):
 
 # ── Single-field difference tests ─────────────────────────────────────────────
 
+
 def test_different_description_creates_separate_recipe(client):
     job1 = _submit_and_wait(client, "https://example.com/desc-a")
     _swap_extractor(client, _make_extractor({"description": "A zesty twist on the classic."}))
@@ -88,7 +90,9 @@ def test_different_description_creates_separate_recipe(client):
     finally:
         _reset_extractor(client)
 
-    assert job1["recipe_id"] != job2["recipe_id"], "Different description must produce a separate recipe"
+    assert job1["recipe_id"] != job2["recipe_id"], (
+        "Different description must produce a separate recipe"
+    )
 
 
 def test_different_title_creates_separate_recipe(client):
@@ -111,23 +115,31 @@ def test_different_ingredients_create_separate_recipe(client):
     finally:
         _reset_extractor(client)
 
-    assert job1["recipe_id"] != job2["recipe_id"], "Different ingredients must produce a separate recipe"
+    assert job1["recipe_id"] != job2["recipe_id"], (
+        "Different ingredients must produce a separate recipe"
+    )
 
 
 def test_different_equipment_creates_separate_recipe(client):
     job1 = _submit_and_wait(client, "https://example.com/equip-a")
-    _swap_extractor(client, _make_extractor({"equipment": _MOCK_RECIPE.equipment + ["Thermometer"]}))
+    _swap_extractor(
+        client, _make_extractor({"equipment": _MOCK_RECIPE.equipment + ["Thermometer"]})
+    )
     try:
         job2 = _submit_and_wait(client, "https://example.com/equip-b")
     finally:
         _reset_extractor(client)
 
-    assert job1["recipe_id"] != job2["recipe_id"], "Different equipment must produce a separate recipe"
+    assert job1["recipe_id"] != job2["recipe_id"], (
+        "Different equipment must produce a separate recipe"
+    )
 
 
 def test_different_steps_create_separate_recipe(client):
     job1 = _submit_and_wait(client, "https://example.com/steps-a")
-    _swap_extractor(client, _make_extractor({"steps": _MOCK_RECIPE.steps + ["Garnish with parsley."]}))
+    _swap_extractor(
+        client, _make_extractor({"steps": _MOCK_RECIPE.steps + ["Garnish with parsley."]})
+    )
     try:
         job2 = _submit_and_wait(client, "https://example.com/steps-b")
     finally:
@@ -144,7 +156,9 @@ def test_different_calories_creates_separate_recipe(client):
     finally:
         _reset_extractor(client)
 
-    assert job1["recipe_id"] != job2["recipe_id"], "Different calories must produce a separate recipe"
+    assert job1["recipe_id"] != job2["recipe_id"], (
+        "Different calories must produce a separate recipe"
+    )
 
 
 def test_different_protein_creates_separate_recipe(client):
@@ -155,7 +169,9 @@ def test_different_protein_creates_separate_recipe(client):
     finally:
         _reset_extractor(client)
 
-    assert job1["recipe_id"] != job2["recipe_id"], "Different protein_g must produce a separate recipe"
+    assert job1["recipe_id"] != job2["recipe_id"], (
+        "Different protein_g must produce a separate recipe"
+    )
 
 
 def test_different_carbs_creates_separate_recipe(client):
@@ -166,7 +182,9 @@ def test_different_carbs_creates_separate_recipe(client):
     finally:
         _reset_extractor(client)
 
-    assert job1["recipe_id"] != job2["recipe_id"], "Different carbs_g must produce a separate recipe"
+    assert job1["recipe_id"] != job2["recipe_id"], (
+        "Different carbs_g must produce a separate recipe"
+    )
 
 
 def test_different_fat_creates_separate_recipe(client):

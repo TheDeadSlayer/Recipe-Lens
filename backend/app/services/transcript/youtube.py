@@ -8,7 +8,6 @@ from youtube_transcript_api._errors import (
     RequestBlocked,
     TranscriptsDisabled,
     VideoUnavailable,
-    YouTubeRequestFailed,
 )
 
 from app.services.transcript.base import (

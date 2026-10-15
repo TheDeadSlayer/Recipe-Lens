@@ -26,8 +26,7 @@ def _canonical(recipe: RecipeSchema) -> dict:
         "title": _strip(recipe.title),
         "description": _strip(recipe.description) if recipe.description is not None else None,
         "ingredients": [
-            {"name": _strip(i.name), "quantity": _strip(i.quantity)}
-            for i in recipe.ingredients
+            {"name": _strip(i.name), "quantity": _strip(i.quantity)} for i in recipe.ingredients
         ],
         "equipment": [_strip(e) for e in recipe.equipment],
         "steps": [_strip(s) for s in recipe.steps],

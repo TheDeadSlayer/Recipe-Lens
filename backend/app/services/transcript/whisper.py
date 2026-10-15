@@ -39,8 +39,10 @@ class WhisperTranscriptProvider(TranscriptProvider):
     _YTDLP_ARGS = [
         "yt-dlp",
         "-x",
-        "--audio-format", "mp3",
-        "--audio-quality", "5",
+        "--audio-format",
+        "mp3",
+        "--audio-quality",
+        "5",
         "--no-playlist",
         "--quiet",
         "--no-warnings",
@@ -54,8 +56,7 @@ class WhisperTranscriptProvider(TranscriptProvider):
         api_key = settings.openai_api_key.get_secret_value()
         if not api_key:
             raise TranscriptUnavailableError(
-                "OPENAI_API_KEY is not set. "
-                "The Whisper audio fallback requires an OpenAI API key."
+                "OPENAI_API_KEY is not set. The Whisper audio fallback requires an OpenAI API key."
             )
 
         self._client = openai.OpenAI(
@@ -100,11 +101,11 @@ class WhisperTranscriptProvider(TranscriptProvider):
             raise TranscriptUnavailableError(
                 "yt-dlp is not installed or not on PATH. "
                 "The Whisper audio fallback requires yt-dlp."
-            )
+            ) from None
         except subprocess.TimeoutExpired:
             raise TranscriptUnavailableError(
                 f"yt-dlp timed out downloading audio for URL: {url}"
-            )
+            ) from None
 
         if result.returncode != 0:
             # yt-dlp writes useful diagnostics to stderr — log them but never

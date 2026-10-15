@@ -10,6 +10,9 @@ spec:
   parentRefs:
     - name: {{ include "recipelens.fullname" . }}-gateway
 
+  hostnames:
+    - recipelens-demo.canadacentral.cloudapp.azure.com
+
   rules:
     # API traffic goes directly to FastAPI.
     - matches:
