@@ -1,6 +1,7 @@
 import logging
 import random
 import time
+from urllib.parse import urlparse
 
 from pydantic import ValidationError
 
@@ -116,6 +117,20 @@ _RETRYABLE_STATUSES = {
     "DEADLINE_EXCEEDED",
     "RESOURCE_EXHAUSTED",  # covers 429 from the Gemini side
 }
+
+
+def _normalize_youtube_url(url: str) -> str:
+    parsed = urlparse(url)
+    host = parsed.netloc.lower().removeprefix("www.")
+
+    if host in {"youtube.com", "m.youtube.com"} and parsed.path.startswith("/shorts/"):
+        parts = parsed.path.strip("/").split("/")
+
+        if len(parts) >= 2 and parts[1]:
+            video_id = parts[1]
+            return f"https://www.youtube.com/watch?v={video_id}"
+
+    return url
 
 
 def _is_transient(exc: Exception) -> bool:
@@ -248,6 +263,7 @@ class GeminiVideoRecipeExtractor(VideoRecipeExtractor):
 
         for attempt in range(1, _MAX_ATTEMPTS + 1):
             try:
+                url = _normalize_youtube_url(url)
                 return self._call_gemini_classify(url)
 
             except RecipeExtractionError:
@@ -305,6 +321,7 @@ class GeminiVideoRecipeExtractor(VideoRecipeExtractor):
 
         for attempt in range(1, _MAX_ATTEMPTS + 1):
             try:
+                url = _normalize_youtube_url(url)
                 return self._call_gemini(url)
 
             except RecipeExtractionError:
