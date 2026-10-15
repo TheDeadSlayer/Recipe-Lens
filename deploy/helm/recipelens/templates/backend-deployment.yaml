@@ -27,9 +27,17 @@ metadata:
     app.kubernetes.io/component: backend
 spec:
   replicas: {{ .Values.backend.replicaCount }}
+  
+  strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 0
+    maxUnavailable: 1
+
   selector:
     matchLabels:
       {{- include "recipelens.backend.selectorLabels" . | nindent 6 }}
+
   template:
     metadata:
       labels:
