@@ -13,7 +13,7 @@ azure:
 
 backend:
   image:
-    tag: "d4f0833"
+    tag: "d0ca67d"
   env:
     # CORS_ORIGINS covers port-forward access during Stage 4F.1 testing.
     # Update to the public hostname when Ingress/DNS is configured (Stage 4F.2).
@@ -21,4 +21,4 @@ backend:
 
 frontend:
   image:
-    tag: "cdd7715"
+    tag: "d0ca67d"

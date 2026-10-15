@@ -189,14 +189,50 @@ resource "azurerm_kubernetes_cluster_node_pool" "app" {
   name                  = "app"
   kubernetes_cluster_id = azurerm_kubernetes_cluster.this.id
 
-  vm_size    = "Standard_D2pds_v5"
+  vm_size   = "Standard_E2pds_v5"
   node_count = 1
-  mode       = "User"
 
+  mode           = "User"
   vnet_subnet_id = var.aks_subnet_id
+  os_type        = "Linux"
+  os_sku         = "Ubuntu"
 
-  os_type = "Linux"
-  os_sku  = "Ubuntu"
+  upgrade_settings {
+    max_surge                     = "10%"
+    drain_timeout_in_minutes      = 0
+    node_soak_duration_in_minutes = 0
+  }
 
   tags = var.tags
+}
+
+resource "azapi_update_resource" "gateway_api_app_routing" {
+  type        = "Microsoft.ContainerService/managedClusters@2026-03-01"
+  resource_id = azurerm_kubernetes_cluster.this.id
+
+  body = {
+    properties = {
+      ingressProfile = {
+        gatewayAPI = {
+          installation = "Standard"
+        }
+
+        webAppRouting = {
+          gatewayAPIImplementations = {
+            appRoutingIstio = {
+              mode = "Enabled"
+            }
+          }
+        }
+      }
+    }
+  }
+
+  response_export_values = [
+    "properties.ingressProfile"
+  ]
+
+  depends_on = [
+    azurerm_kubernetes_cluster.this
+  ]
 }
