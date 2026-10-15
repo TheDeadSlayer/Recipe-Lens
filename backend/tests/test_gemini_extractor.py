@@ -128,7 +128,7 @@ def _patch_is_transient(module, fake_server_cls, fake_client_cls):
             return True
         if isinstance(exc, fake_client_cls):
             return getattr(exc, "code", 0) == 429
-        return isinstance(exc, (ConnectionError, TimeoutError, OSError))
+        return isinstance(exc, ConnectionError | TimeoutError | OSError)
 
     return patch.object(gemini_mod, "_is_transient", side_effect=_patched)
 

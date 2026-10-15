@@ -189,7 +189,7 @@ resource "azurerm_kubernetes_cluster_node_pool" "app" {
   name                  = "app"
   kubernetes_cluster_id = azurerm_kubernetes_cluster.this.id
 
-  vm_size   = "Standard_E2pds_v5"
+  vm_size    = "Standard_E2pds_v5"
   node_count = 1
 
   mode           = "User"

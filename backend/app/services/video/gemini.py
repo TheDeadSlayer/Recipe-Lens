@@ -139,7 +139,7 @@ def _is_transient(exc: Exception) -> bool:
         from google.genai.errors import APIError, ClientError, ServerError
     except ImportError:
         # SDK not installed — treat all non-network errors as permanent.
-        return isinstance(exc, (ConnectionError, TimeoutError, OSError))
+        return isinstance(exc, ConnectionError | TimeoutError | OSError)
 
     if isinstance(exc, ServerError):
         # 5xx — always transient
@@ -154,7 +154,7 @@ def _is_transient(exc: Exception) -> bool:
         return getattr(exc, "status", "") in _RETRYABLE_STATUSES
 
     # Network / OS layer errors are transient.
-    return isinstance(exc, (ConnectionError, TimeoutError, OSError))
+    return isinstance(exc, ConnectionError | TimeoutError | OSError)
 
 
 def _retry_after_seconds(exc: Exception) -> float | None:
