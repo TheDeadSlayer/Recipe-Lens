@@ -153,6 +153,26 @@ jobs:
 
           kubectl get gateway,httproute \
             -n "$HELM_NAMESPACE"
+            
+      - name: Set up Python for Ansible
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install Ansible
+        run: |
+          python -m pip install ansible kubernetes
+
+      - name: Install Ansible collections
+        run: |
+          ansible-galaxy collection install \
+            -r ./ops/ansible/requirements.yml
+
+      - name: Run Ansible post-deployment validation
+        run: |
+          ansible-playbook \
+            -i ./ops/ansible/inventory.ini \
+            ./ops/ansible/post_deploy.yml
 
       - name: Smoke test frontend
         run: |

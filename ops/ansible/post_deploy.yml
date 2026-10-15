@@ -1,0 +1,97 @@
+---
+- name: Validate RecipeLens deployment
+  hosts: local
+  gather_facts: false
+
+  vars:
+    namespace: recipelens
+    app_url: https://recipelens-demo.canadacentral.cloudapp.azure.com
+
+  tasks:
+    - name: Get RecipeLens pods
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Pod
+        namespace: "{{ namespace }}"
+      register: recipelens_pods
+
+    - name: Ensure RecipeLens pods exist
+      ansible.builtin.assert:
+        that:
+          - recipelens_pods.resources | length > 0
+        fail_msg: "No RecipeLens pods were found."
+
+    - name: Verify all RecipeLens containers are ready
+      ansible.builtin.assert:
+        that:
+          - >
+            item.status.containerStatuses is defined and
+            item.status.containerStatuses |
+            map(attribute='ready') |
+            select('equalto', false) |
+            list |
+            length == 0
+        fail_msg: "Pod {{ item.metadata.name }} is not ready."
+      loop: "{{ recipelens_pods.resources }}"
+      loop_control:
+        label: "{{ item.metadata.name }}"
+
+    - name: Get backend deployment
+      kubernetes.core.k8s_info:
+        api_version: apps/v1
+        kind: Deployment
+        namespace: "{{ namespace }}"
+        name: recipelens-backend
+      register: backend
+
+    - name: Verify backend deployment is available
+      ansible.builtin.assert:
+        that:
+          - backend.resources | length == 1
+          - backend.resources[0].status.availableReplicas | default(0) >= 1
+        fail_msg: "Backend deployment is not available."
+
+    - name: Get frontend deployment
+      kubernetes.core.k8s_info:
+        api_version: apps/v1
+        kind: Deployment
+        namespace: "{{ namespace }}"
+        name: recipelens-frontend
+      register: frontend
+
+    - name: Verify frontend deployment is available
+      ansible.builtin.assert:
+        that:
+          - frontend.resources | length == 1
+          - frontend.resources[0].status.availableReplicas | default(0) >= 1
+        fail_msg: "Frontend deployment is not available."
+
+    - name: Verify frontend HTTPS endpoint
+      ansible.builtin.uri:
+        url: "{{ app_url }}/"
+        method: GET
+        status_code: 200
+        validate_certs: true
+      register: frontend_check
+      retries: 5
+      delay: 5
+      until: frontend_check.status == 200
+
+    - name: Verify backend HTTPS endpoint
+      ansible.builtin.uri:
+        url: "{{ app_url }}/api/v1/recipes"
+        method: GET
+        status_code: 200
+        validate_certs: true
+      register: backend_check
+      retries: 5
+      delay: 5
+      until: backend_check.status == 200
+
+    - name: Deployment validation summary
+      ansible.builtin.debug:
+        msg:
+          - "RecipeLens deployment validated successfully."
+          - "Backend: healthy"
+          - "Frontend: healthy"
+          - "HTTPS: healthy"
