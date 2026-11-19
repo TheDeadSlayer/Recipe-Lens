@@ -4,6 +4,12 @@
 
 RecipeLens accepts a YouTube cooking video URL, sends it to Google's Gemini multimodal API for classification and structured recipe extraction, persists the result in PostgreSQL, and serves it through a React single-page application. The project demonstrates an end-to-end, production-style cloud delivery platform on Microsoft Azure — covering infrastructure as code, Kubernetes, secure secret management, CI/CD, and observability.
 
+### 🌐 Live Demo
+
+**Frontend:** https://recipe-lens-pied.vercel.app  
+**API:** https://recipe-lens.onrender.com 
+> **Note:** The original production-style deployment was built on Microsoft Azure using AKS, ACR, Key Vault, PostgreSQL Flexible Server, Terraform, Helm, and Azure Monitor. The current public demo is hosted on Vercel, Render, and Neon to keep the project continuously accessible after the Azure subscription expired.
+
 [![CI](https://github.com/TheDeadSlayer/Recipe-Lens/actions/workflows/ci.yml/badge.svg)](https://github.com/TheDeadSlayer/Recipe-Lens/actions/workflows/ci.yml)
 [![Deploy Dev](https://github.com/TheDeadSlayer/Recipe-Lens/actions/workflows/deploy-dev.yml/badge.svg)](https://github.com/TheDeadSlayer/Recipe-Lens/actions/workflows/deploy-dev.yml)
 ![Azure](https://img.shields.io/badge/Azure-AKS-0078d4?logo=microsoftazure)
